@@ -229,9 +229,9 @@ rpm: version
 	sed -ri "s/__VRELAY_BUILD_VERSION__/$$VERSION_BUILD_STRING/" ../rpmbuild/SPECS/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING.spec; \
 	mv virtio-forwarder/ virtio-forwarder-$$VERSION_TAG_STRING; \
 	tar cfjp ../rpmbuild/SOURCES/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING.tar.bz2 virtio-forwarder-$$VERSION_TAG_STRING/; \
-	rpmbuild -ba -D "_topdir $(shell pwd)/rpmbuild/" ../rpmbuild/SPECS/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING.spec; \
-	cp ../rpmbuild/RPMS/x86_64/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING*.rpm .; \
-	cp ../rpmbuild/SRPMS/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING*src.rpm .
+	rpmbuild -$${RPMBUILD_FLAGS:-ba} -D "_topdir $(shell pwd)/rpmbuild/" ../rpmbuild/SPECS/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING.spec; \
+	if [ -z $${RPMBUILD_FLAGS:+x} ]; then cp ../rpmbuild/RPMS/x86_64/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING*.rpm $${RPM_OUTDIR:-.}; fi; \
+	cp ../rpmbuild/SRPMS/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING*src.rpm $${RPM_OUTDIR:-.}
 
 prepare_docs: version
 	@rm -fr _build; mkdir -p _build/

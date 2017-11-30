@@ -12,6 +12,11 @@ License:        GPLv3+
 URL:            http://netronome.com
 Source0:        virtio-forwarder-__VRELAY_TAG_VERSION__-__VRELAY_BUILD_VERSION__.tar.bz2
 Requires:       python-zmq, protobuf-python
+BuildRequires:  make gcc
+BuildRequires:  protobuf-c-compiler protobuf-c-devel protobuf-compiler
+BuildRequires:  zeromq3-devel
+BuildRequires:  python python-setuptools python-sphinx
+BuildRequires:  numactl-devel
 
 %define debug_package %{nil}
 
