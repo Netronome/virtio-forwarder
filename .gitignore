@@ -1,0 +1,8 @@
+build
+_build
+*.pyc
+*.swp
+.testrepository
+vrelay_version.h
+rpmbuild
+doc/_build

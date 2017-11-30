@@ -1,0 +1,315 @@
+/*
+ *   BSD LICENSE
+ *
+ *   Copyright(c) 2016-2017 Netronome.
+ *   All rights reserved.
+ *
+ *   Redistribution and use in source and binary forms, with or without
+ *   modification, are permitted provided that the following conditions
+ *   are met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in
+ *       the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of Netronome nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+package virtioforwarder;
+
+// Request to add/remove a VF from virtio-forwarder.
+message PortControlRequest {
+    enum Op {
+        ADD = 0;
+        REMOVE = 1;
+    }
+
+    required Op op = 1;
+
+    // PCI address of VF to add/remove.
+    message PciAddress {
+        required uint32 domain = 1;
+        required uint32 bus = 2;
+        required uint32 slot = 3;
+        required uint32 function = 4;
+    }
+
+    required PciAddress pci_addr = 2;
+
+    // VF number of VF to add/remove.
+    required uint32 vf = 3;
+
+    // True to ignore requests that wouldn't change the relay state, rather
+    // than treating them as errors.
+    optional bool conditional = 4 [default = true];
+}
+
+// Response to PortControlRequest.
+message PortControlResponse {
+    enum Status {
+        ERROR = 0;
+        OK = 1;
+    }
+
+    // Basic success/failure information.
+    required Status status = 4;
+
+    // Numeric error code, e.g., errno or function return value.
+    optional int32 error_code = 5;
+
+    // Source of @a error_code.
+    optional string error_code_source = 6;
+}
+
+// State of an individual relay, including statistics.
+message RelayState {
+    // Relay number.
+    required uint32 id = 1;
+
+    // True if this relay is fully active.
+    required bool active = 2;
+
+    // External label (e.g., Neutron port identifier) for this relay.
+    optional string ident = 3;
+
+    // A structure to describe the CPU pair assigned to this relay.
+    message CPU {
+        // CPU that copies packets up from the VF to the VM. (This is CPU1 in
+        // a command-line CPU1:CPU2 pair.)
+        optional int32 vf_to_vm = 1;
+
+        // CPU that copies packets down from the VM to the VF. (This is CPU2 in
+        // a command-line CPU1:CPU2 pair.)
+        optional int32 vm_to_vf = 2;
+    }
+
+    // CPU pair assigned to this relay.
+    optional CPU cpu = 4;
+
+    // A structure to describe the VF, if any, attached to this relay.
+    message VF {
+        // PCI address of VF attached to this relay.
+        optional string pci_addr_str = 1;
+    }
+
+    // VF attached to this relay.
+    optional VF vf = 5;
+
+    // A structure to represent statistics for the VF-to-VM side of the relay
+    // (the "up" direction).
+    message VFtoVM {
+        // True if a VF is connected to the relay.
+        required bool active = 1;
+
+        // Debug string representing the internal state of the "up" direction.
+        required string internal_state = 2;
+
+        //--
+
+        // Number of packets received from the VF.
+        optional uint64 pkts_rx_from_vf = 3;
+
+        // Number of bytes received from the VF.
+        optional uint64 bytes_rx_from_vf = 4;
+
+        // Number of packets sent to the VM.
+        optional uint64 pkts_tx_to_vm = 5;
+
+        // Number of bytes sent to the VM.
+        optional uint64 bytes_tx_to_vm = 6;
+
+        // Number of packets dropped because the VM queue was full.
+        optional uint64 pkts_dropped_vm_queue_full = 7;
+
+        // Number of bytes dropped because the VM queue was full.
+        //
+        // (Not implemented as of 2017-03-07.)
+        optional uint64 bytes_dropped_vm_queue_full = 8;
+
+        // Number of packets dropped because the VF sent a packet when there
+        // was no VM connected.
+        optional uint64 pkts_dropped_vm_not_connected = 9;
+
+        // Number of bytes dropped because the VF sent a packet when there
+        // was no VM connected.
+        //
+        // (Not implemented as of 2017-03-07.)
+        optional uint64 bytes_dropped_vm_not_connected = 10;
+
+        /* Rates. */
+        required float pkt_rate_rx_from_vf = 11;
+        required float byte_rate_rx_from_vf = 12;
+        required float pkt_rate_tx_to_vm = 13;
+        required float byte_rate_tx_to_vm = 14;
+    }
+
+    // Statistics for the VF-to-VM side of the relay (the "up" direction).
+    required VFtoVM vf_to_vm = 6;
+
+    // A structure to represent statistics for the VM-to-VF side of the relay
+    // (the "down" direction).
+    message VMtoVF {
+        // True if a VM is connected to the relay.
+        required bool active = 1;
+
+        // Debug string representing the internal state of the "down"
+        // direction.
+        required string internal_state = 2;
+
+        //--
+
+        // Number of packets received from the VM.
+        optional uint64 pkts_rx_from_vm = 3;
+
+        // Number of bytes received from the VM.
+        optional uint64 bytes_rx_from_vm = 4;
+
+        // Number of packets sent to the VF.
+        optional uint64 pkts_tx_to_vf = 5;
+
+        // Number of bytes sent to the VF.
+        optional uint64 bytes_tx_to_vf = 6;
+
+        // Number of packets dropped because the VF queue was full.
+        optional uint64 pkts_dropped_vf_queue_full = 7;
+
+        // Number of bytes dropped because the VF queue was full.
+        //
+        // (Not implemented as of 2017-03-07.)
+        optional uint64 bytes_dropped_vf_queue_full = 8;
+
+        // Number of packets dropped because the VM sent a packet when there
+        // was no VF connected.
+        optional uint64 pkts_dropped_vf_not_connected = 9;
+
+        // Number of bytes dropped because the VM sent a packet when there
+        // was no VF connected.
+        //
+        // (Not implemented as of 2017-03-07.)
+        optional uint64 bytes_dropped_vf_not_connected = 10;
+
+        /* Rates. */
+        required float pkt_rate_rx_from_vm = 11;
+        required float byte_rate_rx_from_vm = 12;
+        required float pkt_rate_tx_to_vf = 13;
+        required float byte_rate_tx_to_vf = 14;
+    }
+
+    // Statistics for the VM-to-VF side of the relay (the "down" direction).
+    required VMtoVF vm_to_vf = 7;
+
+    // NUMA node where the relay's memory pool is allocated
+    required uint32 socket_id = 8;
+}
+
+// Request for statistics.
+message StatsRequest {
+    // Relay numbers of interest. If empty, return information for all relays
+    // (subject to the "include_inactive" flag).
+    repeated uint32 relay = 1 [packed = true];
+
+    // True to include inactive relays in the response.
+    optional bool include_inactive = 2 [default = true];
+
+    // Delay for the calculation of network rates.
+    optional uint32 delay = 3 [default = 0];
+}
+
+// Response to StatsRequest.
+message StatsResponse {
+    enum Status {
+        OK = 0;
+        EBADR = 400;   // bad request
+        E2BIG = 413;   // too many relays requested
+        ENOMEM = 500;  // out of memory while processing request
+    }
+
+    required Status status = 1;
+
+    // Relay state for relay numbers of interest.
+    //
+    // Requested relay numbers that are out of range will not be represented in
+    // this array; therefore it is possible that the array will be empty if all
+    // relay numbers in the request were out of range.
+    //
+    // If status contains any value other than OK, the contents of this array
+    // are undefined.
+    repeated RelayState relay = 2;
+}
+
+// Request for configuration data.
+message ConfigRequest {
+}
+
+// Response to ConfigRequest.
+message ConfigResponse {
+    enum Status {
+        OK = 0;
+        EBADR = 400;   // bad request
+    }
+    required Status status = 1;
+
+    // Reserving field numbers 2, 3, and 4 for "virtio-forwarder version," "DPDK
+    // version," and "features," respectively.
+
+    message RelayCPU {
+        required int32 relay_number = 1;
+        required int32 vf2virtio_cpu = 2;
+        required int32 virtio2vf_cpu = 3;
+    }
+
+    repeated RelayCPU relay_cpu_map = 5;
+}
+
+// Request to update the relay to core assignments.
+message CoreSchedRequest {
+    enum Op {
+        UPDATE = 0;
+        GET_EAL_CORES = 1;
+    }
+    required Op op = 1;
+
+    message RelayCPU {
+        required int32 relay_number = 1;
+        required int32 vf2virtio_cpu = 2;
+        required int32 virtio2vf_cpu = 3;
+    }
+
+    repeated RelayCPU relay_cpu_map = 2;
+}
+
+// Response to PortControlRequest.
+message CoreSchedResponse {
+    enum Status {
+        ERROR = 0;
+        OK = 1;
+    }
+
+    // Basic success/failure information.
+    required Status status = 4;
+
+    // Numeric error code, e.g., errno or function return value.
+    optional int32 error_code = 5;
+
+    // Source of @a error_code.
+    optional string error_code_source = 6;
+
+    // EAL core bitmap
+    repeated uint32 eal_cores = 7;
+}

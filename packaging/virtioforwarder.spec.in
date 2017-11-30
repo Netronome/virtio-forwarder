@@ -1,0 +1,45 @@
+%if 0%{?el7} == 01
+  %define dist .el7
+  # Name releases consistently for RHEL and CentOS
+%endif
+
+Name:           virtio-forwarder
+Version:        __VRELAY_TAG_VERSION__
+Release:        __VRELAY_BUILD_VERSION__%{?dist}
+Summary:        Virtio-forwarder
+
+License:        GPLv3+
+URL:            http://netronome.com
+Source0:        virtio-forwarder-__VRELAY_TAG_VERSION__-__VRELAY_BUILD_VERSION__.tar.bz2
+Requires:       python-zmq, protobuf-python
+
+%define debug_package %{nil}
+
+%description
+
+%prep
+%setup -q
+
+%build
+# We need to clean the variables that may have been set from a previous
+# invocation of make, e.g. if rpmbuild is called from a Makefile.
+env -i PATH=$PATH ${RTE_SDK:+RTE_SDK=$RTE_SDK} ${RTE_TARGET:+RTE_TARGET=$RTE_TARGET} make
+
+%install
+rm -rf $RPM_BUILD_ROOT
+env -i PATH=$PATH ${RTE_SDK:+RTE_SDK=$RTE_SDK} ${RTE_TARGET:+RTE_TARGET=$RTE_TARGET} %{make_install} prefix=%{_prefix}
+
+%post
+systemctl daemon-reload
+
+%files
+%{_prefix}/bin/virtio-forwarder
+%{_prefix}/share/man/man8/virtio-forwarder.8.gz
+%{_prefix}/libexec/virtio-forwarder
+/etc/default/virtioforwarder
+/etc/systemd/system/virtio-forwarder.service
+/etc/systemd/system/vio4wd_core_scheduler.service
+/etc/init/virtio-forwarder.conf
+/etc/init/vio4wd_core_scheduler.conf
+
+%changelog

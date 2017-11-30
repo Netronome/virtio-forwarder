@@ -1,0 +1,121 @@
+# Virtio-forwarder daemon: forward packets between SR-IOV VFs (serviced by DPDK)
+# and VirtIO network backend.
+
+#-------------------------------------------------------------------------------
+# Generally useful settings
+#-------------------------------------------------------------------------------
+
+# CPUs to use for worker threads (either comma separated integers or hex bitmap
+# starting with 0x)
+VIRTIOFWD_CPU_MASK=1,2
+
+# Log threshold 0-7 (least to most verbose)
+VIRTIOFWD_LOG_LEVEL=6
+
+# Use IPC to add/remove VF&virtio instead of OVSDB (default: use OVSDB)
+# Set to anything non-null to enable
+VIRTIOFWD_IPC_PORT_CONTROL=
+
+# OVSDB unix domain socket file used for port control.
+# Blank defaults to /usr/local/var/run/openvswitch/db.sock
+# Cannot use with VIRTIOFWD_IPC_PORT_CONTROL
+VIRTIOFWD_OVSDB_SOCK_PATH=
+
+# Set to anything non-null to enable
+VIRTIOFWD_JUMBO=y
+VIRTIOFWD_MRGBUF=y
+VIRTIOFWD_TSO=y
+
+# vhost-user unix socket ownership username (leave blank to inherit process
+# username)
+VIRTIOFWD_SOCKET_OWNER=
+
+# vhost-user unix socket ownership groupname (leave blank to inherit process
+# groupname)
+VIRTIOFWD_SOCKET_GROUP=
+
+# Mount path to hugepages for vhost-user communication with VMs
+# IMPORTANT: This must match the path configured for libvirt/QEMU!
+VIRTIOFWD_HUGETLBFS_MOUNT_POINT=/mnt/huge
+
+# Add static VFs, in the form <PCI>=<virtio_id>, e.g. 0000:05:08.1=1
+# Multiple instances can be specified using bash array format. The following
+# are all valid:
+# VIRTIOFWD_STATIC_VFS=(0000:05:08.1=1 0000:05:08.2=2 0000:05:08.3=3)
+# VIRTIOFWD_STATIC_VFS=(0000:05:08.1=1)
+# VIRTIOFWD_STATIC_VFS=0000:05:08.1=1
+VIRTIOFWD_STATIC_VFS=
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Core scheduler settings
+# Leave blank to retain defaults
+#-------------------------------------------------------------------------------
+
+# Use dynamic load balancing. Anything else than 'true' equates to disabled
+VIO4WD_CORE_SCHED_ENABLE=false
+
+# Switching sensitivity. Higher value decrease the sensitivity
+VIO4WD_CORE_SCHED_SENSITIVITY=
+
+# Log threshold as above
+VIO4WD_CORE_SCHED_LOG_LEVEL=6
+
+# Polling interval
+VIO4WD_CORE_SCHED_POLL_INTERVAL=
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Specialized settings (you probably don't need to touch these)
+#-------------------------------------------------------------------------------
+
+# VF relay to CPU pinnings
+# Notation:
+# 1. Specify exactly which CPU(s) to use for the specified VFs using the
+#    format <vf:cpu[,cpu]>. Multiple instances can be specified using bash arrays.
+#    The following are all valid:
+# VIRTIOFWD_CPU_PINS=(0:1,1 1:1,2 2:2,1)
+# VIRTIOFWD_CPU_PINS=(0:1,1)
+# VIRTIOFWD_CPU_PINS=0:1,1
+#
+# 2. A blank string, meaning to use the automatic CPU scheduling policy (no
+#    pins).
+#
+# NOTE: The core scheduler will override any of the above pinnings if it is running!
+VIRTIOFWD_CPU_PINS=
+
+# PID file (virtioforwarder.pid) will be written to this directory
+VIRTIOFWD_PID_DIR=/var/run
+
+# ZeroMQ IPC endpoint used for configuration queries
+VIRTIOFWD_ZMQ_CONFIG_EP=
+
+# ZeroMQ IPC endpoint used to add/remove SR-IOV VFs to the relay
+VIRTIOFWD_ZMQ_PORT_CONTROL_EP=
+
+# ZeroMQ IPC endpoint used to query relay stats
+VIRTIOFWD_ZMQ_STATS_EP=ipc:///var/run/virtio-forwarder/stats
+
+# ZeroMQ IPC endpoint used for dynamic core scheduling (load balancing)
+VIRTIOFWD_ZMQ_CORE_SCHED_EP=ipc:///var/run/virtio-forwarder/core_sched
+
+# Directory containing vhost-user unix sockets
+VIRTIOFWD_SOCKET_DIR=/tmp/virtio-forwarder
+
+# vhost-user unix socket file name pattern, must contain exactly one %u to
+# denote VirtIO ID
+VIRTIOFWD_SOCKET_FNAME_PATTERN=
+
+# Path to virtio-forwarder binary (debugging knob).
+VIRTIOFWD_BINARY=__BINDIR__/virtio-forwarder
+
+# CPU to use as the master lcore. Blank defaults to CPU0
+VIRTIOFWD_MASTER_LCORE=
+
+# Non-blank enables vhostuser client mode (default: server mode)
+VIRTIOFWD_VHOST_CLIENT=
+
+# Use experimental zero-copy support (VM to NIC) (default: disabled)
+VIRTIOFWD_ZERO_COPY=

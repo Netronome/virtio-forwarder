@@ -1,0 +1,16 @@
+Source: virtio-forwarder
+Maintainer: Frik Botha <frik.botha@netronome.com>
+Section: admin
+Build-Depends: debhelper (>= 9), python-minimal
+Standards-Version: 3.9.5
+Homepage: https://github.com/Netronome/virtio-forwarder
+Priority: optional
+
+Package: virtio-forwarder
+Section: admin
+Homepage: https://github.com/Netronome/virtio-forwarder
+Architecture: amd64
+Priority: optional
+Depends: ${misc:Depends}, ${shlibs:Depends}, python, python-zmq, python-protobuf
+Description: Virtio-forwarder
+ An SR-IOV virtual function to virtio packet forwarder

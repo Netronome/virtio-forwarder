@@ -1,0 +1,11 @@
+[Unit]
+Description=Virtio-forwarder
+After=syslog.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/default/virtioforwarder
+
+ExecStartPre=__LIBEXECDIR__/vio4wd-pre-start.sh
+ExecStart=__LIBEXECDIR__/vio4wd-start.sh
+ExecStopPost=__LIBEXECDIR__/vio4wd-post-stop.sh
