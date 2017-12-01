@@ -76,7 +76,6 @@ master_doc = 'README'
 
 # General information about the project.
 project = u'Virtio-forwarder'
-copyright = u'2011-2017, Netronome'
 author = u'Bert van Leeuwen, Frik Botha'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -113,6 +112,7 @@ todo_include_todos = True
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'
+html_show_copyright = False
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
