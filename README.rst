@@ -160,7 +160,6 @@ following table lists a subset of the available options and their use:
 .. list-table:: virtio-forwarder Configuration Variables
 	:header-rows: 1
 	:widths: 50, 20, 20
-	:align: center
 
 	* - Name / Description
 	  - Valid values
