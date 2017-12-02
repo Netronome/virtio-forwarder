@@ -1,3 +1,3 @@
-virtio-forwarder (__VRELAY_VERSION__) UNRELEASED; urgency=low
+virtio-forwarder (__VRELAY_VERSION__) xenial; urgency=low
   *  Initial release
  -- Frik Botha <frik.botha@netronome.com>  Tue, 10 Oct 2017 15:04:46 +0200
