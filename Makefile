@@ -190,7 +190,7 @@ vio_clean:
 
 deb: version
 	@rm -fr _build; mkdir -p _build/virtio-forwarder
-	@find . -maxdepth 1 -type f -regextype posix-extended -regex '.*(README.rst|Makefile|\.(c|h|proto))' -exec cp {} _build/virtio-forwarder/ \;
+	@find . -maxdepth 1 -type f -regextype posix-extended -regex '.*(README.rst|README.md|Makefile|\.(c|h|proto))' -exec cp {} _build/virtio-forwarder/ \;
 	@find scripts/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.py' -exec cp --parents {} _build/virtio-forwarder/ \;
 	@cp --parents startup/virtioforwarder _build/virtio-forwarder/
 	@cp --parents startup/systemd/*.service _build/virtio-forwarder/
@@ -215,7 +215,7 @@ rpm: version
 	mkdir -p rpmbuild/SPECS
 	mkdir -p rpmbuild/SRPMS
 	@rm -fr _build; mkdir -p _build/virtio-forwarder
-	@find . -maxdepth 1 -type f -regextype posix-extended -regex '.*(README.rst|Makefile|\.(c|h|proto))' -exec cp {} _build/virtio-forwarder/ \;
+	@find . -maxdepth 1 -type f -regextype posix-extended -regex '.*(README.rst|README.md|Makefile|\.(c|h|proto))' -exec cp {} _build/virtio-forwarder/ \;
 	@find scripts/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.py' -exec cp --parents {} _build/virtio-forwarder/ \;
 	@cp --parents startup/virtioforwarder _build/virtio-forwarder/
 	@cp --parents startup/systemd/*.service _build/virtio-forwarder/
@@ -238,7 +238,6 @@ rpm: version
 prepare_docs: version
 	@rm -fr _build; mkdir -p _build/
 	cp $${RTE_SRCDIR:+$$RTE_SRCDIR/}doc/* _build/
-	cp $${RTE_SRCDIR:+$$RTE_SRCDIR/}README.rst _build/
 	cd _build; \
 	VERSION_TAG_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/BUILD/&&!/SHASH/{count++; if (count<3) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
 	VERSION_BUILD_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&/BUILD/{print $$3}' vrelay_version.h)"; \
