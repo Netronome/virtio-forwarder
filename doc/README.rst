@@ -1,7 +1,3 @@
-#############################
-Virtio-forwarder User's Guide
-#############################
-
 Introduction
 ============
 virtio-forwarder (VIO4WD) is a userspace networking application that forwards
