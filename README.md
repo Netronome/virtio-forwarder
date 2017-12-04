@@ -6,7 +6,7 @@ The application supports up to 64 VF <-> virtio forwarding instances. Packets re
 Comprehensive documentation on how to setup host machines for virtualization and configuring virtio-forwarder can be found at http://virtio-forwarder.readthedocs.io/.
 
 ### Installation
-virtio-forwarder packages are hosted on copr and ppa. To install, add the applicable repositoriy and launch the appropriate package manager:
+virtio-forwarder packages are hosted on copr and ppa. To install, add the applicable repository and launch the appropriate package manager:
 
 ```
 # rpms

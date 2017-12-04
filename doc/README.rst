@@ -110,14 +110,20 @@ the correct permissions in order to create the necessary per-VM handles:
 
 Installation
 ============
-The virtio-forwarder package can be installed as follows:
+virtio-forwarder packages are hosted on copr and ppa. To install, add the
+applicable repository and launch the appropriate package manager:
 
 .. code:: bash
 
-	# For RHEL/CentOS
-	yum install virtio-forwarder-x.x-xxx.el7.x86_64.rpm
-	# Or Debian
-	dpkg -i virtio-forwarder_x.x.xxx_amd64.deb
+	# rpms
+	yum install yum-plugin-copr
+	yum copr enable fbotha/virtio-forwarder
+	yum install virtio-forwarder
+
+	# debs
+	add-apt-repository ppa:fjbotha/virtio-forwarder
+	apt-get update
+	apt-get install virtio-forwarder
 
 The package install configures virtio-forwarder as a systemd/upstart service. Boot
 time startup can be configured using the appropriate initialization utility,
