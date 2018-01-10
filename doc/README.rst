@@ -110,20 +110,14 @@ the correct permissions in order to create the necessary per-VM handles:
 
 Installation
 ============
-virtio-forwarder packages are hosted on copr and ppa. To install, add the
-applicable repository and launch the appropriate package manager:
+virtio-forwarder packages are hosted on copr. To install, add the
+repository and launch the package manager:
 
 .. code:: bash
 
-	# rpms
 	yum install yum-plugin-copr
-	yum copr enable fbotha/virtio-forwarder
+	yum copr enable netronome/virtio-forwarder
 	yum install virtio-forwarder
-
-	# debs
-	add-apt-repository ppa:fjbotha/virtio-forwarder
-	apt-get update
-	apt-get install virtio-forwarder
 
 The package install configures virtio-forwarder as a systemd/upstart service. Boot
 time startup can be configured using the appropriate initialization utility,
