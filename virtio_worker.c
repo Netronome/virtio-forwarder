@@ -366,7 +366,11 @@ virtio_forwarder_add_vf2(const char *pci_dbdf, unsigned virtio_id, bool conditio
 		pci_dbdf, virtio_id);
 	return 0;
 #else
+#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
+	uint16_t port_id;
+#else
 	uint8_t port_id;
+#endif
 	int rc, err;
 	struct rte_eth_conf eth_conf = {0};
 	struct rte_eth_rxconf rx_conf;
