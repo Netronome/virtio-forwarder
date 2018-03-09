@@ -1,3 +1,6 @@
-virtio-forwarder (__VRELAY_VERSION__) xenial; urgency=low
+virtio-forwarder (__VRELAY_VERSION__~ubuntu__UBUNTU_VER__) __UBUNTU_DIST__; urgency=low
   *  Initial release
- -- Frik Botha <frik.botha@netronome.com>  Tue, 10 Oct 2017 15:04:46 +0200
+ -- Frik Botha <frik.botha@netronome.com>  __DATE__
+__DISTRO_MAP__ trusty: 14.04
+__DISTRO_MAP__ xenial: 16.04
+__DISTRO_MAP__ bionic: 18.04

@@ -52,6 +52,9 @@ mandir = $(prefix)/share/man/man8
 # binary name
 APP = virtio-forwarder
 
+# Default Ubuntu distro
+UBUNTU_DISTRO ?= xenial
+
 # all source are stored in SRCS-y
 SRCS-y := \
     argv.c \
@@ -206,6 +209,12 @@ deb: version
 	cp -r ../packaging/debian virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING/; \
 	sed -ri "s/__VRELAY_VERSION__/$$VERSION_TAG_STRING\.$$VERSION_BUILD_STRING/" virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING/debian/changelog; \
 	cd virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING/; \
+	UBUNTU_VER="$(shell grep '__DISTRO_MAP__ $(UBUNTU_DISTRO)' ./packaging/debian/changelog | sed 's/^.*: //')"; \
+	DATE_STR="$(shell date --rfc-2822)"; \
+	sed -ri "s/__UBUNTU_DIST__/$(UBUNTU_DISTRO)/g" ./debian/changelog; \
+	sed -ri "s/__UBUNTU_VER__/$$UBUNTU_VER/g" ./debian/changelog; \
+	sed -i "/^__DISTRO_MAP__/d" ./debian/changelog; \
+	sed -ri "s/__DATE__/$$DATE_STR/g" ./debian/changelog; \
 	debuild --rootcmd=fakeroot -e RTE_SDK -e RTE_TARGET -us -uc
 
 rpm: version
