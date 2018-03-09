@@ -93,8 +93,20 @@ int dpdk_eal_initialize(const struct dpdk_conf *conf)
 	add_arg(&argv, &argc, "virtio-forwarder_");
 	/* Unlink the hugepages after mapping to ensure they're gone when app exits. */
 	add_arg(&argv, &argc, "--huge-unlink");
+#if RTE_VERSION < RTE_VERSION_NUM(17,11,0,0)
 	/* Prevent scanning all PCI devices at startup, instead only use hotplug API. */
 	add_arg(&argv, &argc, "--no-pci");
+#else
+	/* DPDK's --no-pci behaviour changed in 17.11. With the flag passed, the
+	 * EAL never populates its device lists which causes subsequent hotplugs
+	 * to fail. When it is not passed, EAL attaches to all uio devices,
+	 * which we do not want that either. The 'solution' is to omit the flag
+	 * in order for DPDK to discover devices and to also add a bogus
+	 * whitelist address such that DPDK will only auto-attach to it.
+	 */
+	add_arg(&argv, &argc, "-w");
+	add_arg(&argv, &argc, "ffff:ff:ff.f");
+#endif
 	add_arg(&argv, &argc, "-c"); /* Core mask. */
 	snprintf(buf, 32, "%llx", (long long)conf->core_bitmap | (1<<conf->master_lcore));
 	add_arg(&argv, &argc, buf);
