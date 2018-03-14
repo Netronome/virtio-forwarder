@@ -45,6 +45,11 @@
 #include "virtio_worker.h"
 #include "zmq_service.h"
 
+struct port_control_req_buffer {
+	char dbdf_addrs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN];
+	unsigned virtio_id;
+};
+
 /** Converts PortControlRequest.Op to string. */
 static char const *
 Virtioforwarder__PortControlRequest__Op__to_str(
@@ -66,16 +71,15 @@ Virtioforwarder__PortControlRequest__Op__to_str(
 #define Virtioforwarder__PortControlRequest__Op_CCH_MAX 64
 
 /** Converts PortControlRequest.PciAddress to string. */
-static char const *
+static void
 Virtioforwarder__PortControlRequest__PciAddress__to_str(
 	Virtioforwarder__PortControlRequest__PciAddress const *addr, char *ans,
 	size_t len)
 {
 	snprintf(ans, len, "%04X:%02X:%02X.%X", addr->domain, addr->bus,
 		addr->slot, addr->function);
-	return ans;
 }
-#define Virtioforwarder__PortControlRequest__PciAddress_CCH_MAX 16
+#define Virtioforwarder__PortControlRequest__PciAddress_CCH_MAX 12
 
 /** Converts PortControlRequest to string. */
 static char const *
@@ -83,32 +87,36 @@ Virtioforwarder__PortControlRequest__to_str(
 	Virtioforwarder__PortControlRequest const *pc, char *ans, size_t len)
 {
 	char op_str[Virtioforwarder__PortControlRequest__Op_CCH_MAX];
-	char pci_addr_str[Virtioforwarder__PortControlRequest__PciAddress_CCH_MAX];
+	char pci_addr_str[(1 + Virtioforwarder__PortControlRequest__PciAddress_CCH_MAX) * \
+				MAX_NUM_BOND_SLAVES];
+	const unsigned sz = Virtioforwarder__PortControlRequest__PciAddress_CCH_MAX;
 
-	snprintf(ans, len, "[op=%s, pci_addr=%s, vf=%u]",
+	for (unsigned i=0; i<pc->n_pci_addrs; ++i) {
+		Virtioforwarder__PortControlRequest__PciAddress__to_str(
+			pc->pci_addrs[i], &pci_addr_str[i*(sz+1)], sz+1
+		);
+		strcpy(&pci_addr_str[(i+1)*sz+i], " ");
+	}
+	snprintf(ans, len, "[op=%s, num_VFs=%lu, pci_addrs=<%s>, virtio_id=%u]",
 		Virtioforwarder__PortControlRequest__Op__to_str(
 			pc->op, op_str, sizeof op_str
 		),
-		Virtioforwarder__PortControlRequest__PciAddress__to_str(
-			pc->pci_addr, pci_addr_str, sizeof pci_addr_str
-		),
-		pc->vf
+		pc->n_pci_addrs, pci_addr_str, pc->virtio_id
 	);
 
 	return ans;
 }
-#define Virtioforwarder__PortControlRequest__CCH_MAX 128
+#define Virtioforwarder__PortControlRequest__CCH_MAX 32 + \
+	(1 + Virtioforwarder__PortControlRequest__PciAddress_CCH_MAX) * \
+	MAX_NUM_BOND_SLAVES
 
 /** Range checks PortControlRequest fields. */
 static bool
 validate_PortControlRequest(Virtioforwarder__PortControlRequest const *pc)
 {
 	/* Assuming that these are all unsigned. */
-	return pc->pci_addr->domain   <= 0xFFFF
-		&& pc->pci_addr->bus	  <= 0xFF
-		&& pc->pci_addr->slot	  <= 0xFF
-		&& pc->pci_addr->function <= 0xF
-		&& pc->vf <= 0x7F
+	return pc->n_pci_addrs			> 0x0
+		&& pc->virtio_id		<= 0x7F
 	;
 }
 
@@ -132,6 +140,27 @@ handle_PortControlRequest_set_error_code(
 		response->error_code_source = (char *)(intptr_t) error_code_source;
 		response->error_code = error_code;
 		response->has_error_code = true;
+	}
+}
+
+static void port_control_handle_add(Virtioforwarder__PortControlResponse *response,
+			struct port_control_req_buffer *cfg,
+			unsigned num_devices, bool conditional)
+{
+	if (num_devices == 1) {
+		handle_PortControlRequest_set_error_code(
+			response, "virtio_forwarder_add_vf2()",
+			virtio_forwarder_add_vf2(cfg->dbdf_addrs[0],
+			cfg->virtio_id, conditional)
+		);
+	} else if (num_devices > 1) {
+		handle_PortControlRequest_set_error_code(
+			response, "virtio_forwarder_bond_add()",
+			virtio_forwarder_bond_add(cfg->dbdf_addrs, num_devices,
+			cfg->virtio_id)
+		);
+	} else {
+		log_warning("Invalid number of VFs specified in port add request (%u).", num_devices);
 	}
 }
 
@@ -164,11 +193,14 @@ handle_PortControlRequest(
 			Virtioforwarder__PortControlRequest__to_str(pc, pc_str, sizeof pc_str)
 		);
 
-		struct sriov_info vfinfo;
-		Virtioforwarder__PortControlRequest__PciAddress__to_str(
-			pc->pci_addr, vfinfo.dbdf, sizeof vfinfo.dbdf
-		);
-		vfinfo.vf = pc->vf;
+		struct port_control_req_buffer b;
+		memset(&b, 0, sizeof(b));
+		for (unsigned i=0; i<pc->n_pci_addrs; ++i)
+			Virtioforwarder__PortControlRequest__PciAddress__to_str(
+				pc->pci_addrs[i], b.dbdf_addrs[i],
+				RTE_ETH_NAME_MAX_LEN
+			);
+		b.virtio_id = pc->virtio_id;
 
 		bool conditional;
 		if (pc->has_conditional) {
@@ -180,16 +212,18 @@ handle_PortControlRequest(
 		switch (pc->op)
 		{
 		case VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__ADD:
-			handle_PortControlRequest_set_error_code(
-				&response, "virtio_forwarder_add_vf2()",
-				virtio_forwarder_add_vf2(vfinfo.dbdf, vfinfo.vf, conditional)
-			);
+			port_control_handle_add(&response, &b, pc->n_pci_addrs,
+						conditional);
 			break;
 
 		case VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__REMOVE:
+			if (pc->n_pci_addrs > 1) {
+				log_warning("Multiple PCI addresses provided for removal. VFs must be remove one by one.");;
+				break;
+			}
 			handle_PortControlRequest_set_error_code(
 				&response, "virtio_forwarder_remove_vf2()",
-				virtio_forwarder_remove_vf2(vfinfo.dbdf, vfinfo.vf, conditional)
+				virtio_forwarder_remove_vf2(b.dbdf_addrs[0], b.virtio_id, conditional)
 			);
 			break;
 
@@ -230,8 +264,9 @@ port_control_setup(
 {
 	service->handle_request = &handle_PortControlRequest;
 	service->destructor = &port_control_free;
-	service->max_request_cb = 64;
+	service->max_request_cb = 8 + MAX_NUM_BOND_SLAVES * 16; /* Each PCI request message is 16 bytes. */
 	service->max_response_cb = 256;
+
 	return 0;
 }
 

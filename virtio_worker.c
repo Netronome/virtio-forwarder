@@ -358,6 +358,31 @@ static void build_rx_conf(struct rte_eth_rxconf *rx_conf)
 	rx_conf->rx_free_thresh = 16;
 }
 
+static void format_slave_dbdfs(const char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
+			unsigned num_slaves, char *p)
+{
+	size_t idx = 0;
+
+	for (unsigned i=0; i<num_slaves; i++) {
+		strcpy(&p[idx], slave_dbdfs[i]);
+		idx += strlen(slave_dbdfs[i]);
+		strcpy(&p[idx], " ");
+		idx ++;
+	}
+}
+
+int virtio_forwarder_bond_add(const char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
+			unsigned num_slaves, unsigned virtio_id)
+{
+	char p[RTE_ETH_NAME_MAX_LEN * MAX_NUM_BOND_SLAVES];
+
+	format_slave_dbdfs(slave_dbdfs, num_slaves, p);
+	log_debug("Got virtio_forwarder_bond_add(<%s>, %u, %u)", p, num_slaves,
+		virtio_id);
+
+	return 0;
+}
+
 int
 virtio_forwarder_add_vf2(const char *pci_dbdf, unsigned virtio_id, bool conditional)
 {

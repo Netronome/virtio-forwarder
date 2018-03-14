@@ -43,6 +43,8 @@
 
 #include <rte_ethdev.h>
 
+#define MAX_NUM_BOND_SLAVES 8
+
 int virtio_forwarders_initialize(const struct virtio_vhostuser_conf *conf);
 void virtio_forwarders_shutdown(void);
 
@@ -85,6 +87,16 @@ int virtio_forwarder_add_vf(const char *pci_dbdf, unsigned virtio_id);
 int
 virtio_forwarder_remove_vf2(const char *pci_dbdf, unsigned virtio_id,
 			bool conditional);
+
+/**
+ * @brief Add bond to virtio-forwarder
+ * @param slave_dbdfs list od PCI domain:bus:device.function address strings
+ * @param num_slaves number of slave device addresses contained in slave_dbdfs
+ * @param virtio_id virtio instance to which the bond must be connected
+ */
+int virtio_forwarder_bond_add(const char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
+			unsigned num_slaves, unsigned virtio_id);
+//			unsigned virtio_id);
 
 /**
  * @brief Change the cpus that service a relay.

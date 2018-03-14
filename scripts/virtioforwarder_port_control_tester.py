@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 #   BSD LICENSE
 #
 #   Copyright(c) 2016-2017 Netronome.
@@ -32,26 +33,34 @@
 
 import argparse
 import zmq
-
-from protobuf.virtioforwarder import virtioforwarder_pb2 as relay
-
+import re
+try:
+    from protobuf.virtioforwarder import virtioforwarder_pb2 as relay_
+except ImportError:
+    import os
+    import sys
+    PWD = os.path.dirname(os.path.abspath(__file__))
+    sys.path.append(PWD + '/../build/protobuf/virtioforwarder')
+    import virtioforwarder_pb2 as relay
 
 def _syntax():
     parser = argparse.ArgumentParser()
-    parser.add_argument('zmq_ep', metavar='ZMQ-EP', help='ZeroMQ endpoint')
+    parser.add_argument('--zmq_ep', help='ZeroMQ port control endpoint')
     parser.add_argument(
         'op', metavar='OP', choices=('add', 'remove'),
         help='port control operation',
     )
-    parser.add_argument('--vf', metavar='VF', help='VF', type=int)
+    parser.add_argument(
+        'virtio_id', metavar='virtio-id', type=int,
+        help='virtio instance to connect to'
+    )
     parser.add_argument(
         '--crash-after-send', action='store_true',
         help='crash after sending request'
     )
-    parser.add_argument('--domain', type=int, help='PCI domain')
-    parser.add_argument('--bus', type=int, help='PCI bus')
-    parser.add_argument('--slot', type=int, help='PCI slot')
-    parser.add_argument('--function', type=int, help='PCI function')
+    parser.add_argument(
+        '--pci-addr', default=[], action='append',
+        help='PCI address, e.g. 0000:11:22.3')
     parser.add_argument(
         '--conditional', type=bool,
         help='whether to make a conditional request (default: unspecified)'
@@ -62,30 +71,56 @@ def _syntax():
     )
     return parser
 
+def parse_pci_addr(addr):
+    """Parse PCI address into protobuf.
+
+       Parameters
+       ----------
+       addr : string
+           PCI address. Either xxxx:xx:xx.x or xx:xx.x
+
+       Returns
+       -------
+       PortControlRequest.PciAddress()
+    """
+    assert(type(addr) == str)
+    if re.search('[^\.:0-9a-fA-F]', addr):
+        return (None, 1) # Badly formatted address
+
+    try:
+        dom, b, dev, f = [int(x, 16) for x in re.split('[:\.]', addr)]
+    except ValueError:
+        try:
+            dom = 0
+            b, dev, f = [int(x, 16) for x in re.split('[:\.]', addr)]
+        except ValueError:
+            return (None, 1) # Badly formatted address
+        
+    return (relay.PortControlRequest.PciAddress(domain=dom, bus=b, slot=dev,
+                                                function=f), 0)
 
 def main():
     args = _syntax().parse_args()
 
+    port_control_ep = args.zmq_ep if args.zmq_ep else "ipc:///var/run/virtio-forwarder/port_control"
     context = zmq.Context()
     socket = context.socket(zmq.REQ)
     socket.setsockopt(zmq.LINGER, 0)
     socket.setsockopt(zmq.SNDTIMEO, 0)
     socket.setsockopt(zmq.RCVTIMEO, 2000)
-    socket.connect(args.zmq_ep)
+    socket.connect(port_control_ep)
 
     msg = relay.PortControlRequest(
         op=getattr(relay.PortControlRequest, args.op.upper()),
     )
-    if args.vf is not None:
-        msg.vf = args.vf
-    if args.domain is not None:
-        msg.pci_addr.domain = args.domain
-    if args.bus is not None:
-        msg.pci_addr.bus = args.bus
-    if args.slot is not None:
-        msg.pci_addr.slot = args.slot
-    if args.function is not None:
-        msg.pci_addr.function = args.function
+    if args.virtio_id is not None:
+        msg.virtio_id = int(args.virtio_id)
+    for addr in args.pci_addr:
+        parsed_addr, ret = parse_pci_addr(addr)
+        if ret == 0:
+            # Address format is good
+            pb_pci_addr = relay.PortControlRequest.PciAddress()
+            msg.pci_addrs.extend([parsed_addr])
     if args.conditional is not None:
         msg.conditional = args.conditional
 

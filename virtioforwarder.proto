@@ -50,10 +50,11 @@ message PortControlRequest {
         required uint32 function = 4;
     }
 
-    required PciAddress pci_addr = 2;
+    // When multiple addresses are provided they will be bonded
+    repeated PciAddress pci_addrs = 2;
 
-    // VF number of VF to add/remove.
-    required uint32 vf = 3;
+    // virtio instance to add the VF[s] to.
+    required uint32 virtio_id = 3;
 
     // True to ignore requests that wouldn't change the relay state, rather
     // than treating them as errors.
