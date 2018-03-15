@@ -66,6 +66,7 @@
 #if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
 #include <numaif.h>
 #endif
+#include <rte_eth_bond.h>
 
 /* TODO: make MTU configurable (also impacts hugepage allocation in dpdk_eal.c) */
 #define JUMBO_IP_MTU (9000)
@@ -81,6 +82,11 @@
 /*
  * Type declarations
  */
+#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
+typedef uint16_t dpdk_port_t;
+#else
+typedef uint8_t dpdk_port_t;
+#endif
 
 #if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
 enum {VIRTIO_RXQ, VIRTIO_TXQ, VIRTIO_QNUM};
@@ -141,7 +147,8 @@ struct relay_virtio {
 struct relay_dpdk {
 	int vf2vio_cpu;
 	volatile dpdk_state_t state;
-	uint8_t dpdk_port;
+	bool is_bond;
+	dpdk_port_t dpdk_port;
 	char pci_dbdf[20];
 	struct rte_mbuf *rx_pkts[BURST_LEN];
 	unsigned rx_pkts_avail, rx_pkts_used;
@@ -358,27 +365,139 @@ static void build_rx_conf(struct rte_eth_rxconf *rx_conf)
 	rx_conf->rx_free_thresh = 16;
 }
 
-static void format_slave_dbdfs(const char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
-			unsigned num_slaves, char *p)
+static int cleanup_eth_dev(dpdk_port_t port_id)
 {
-	size_t idx = 0;
+	int err;
+	char detach_dbdf[RTE_ETH_NAME_MAX_LEN];
 
-	for (unsigned i=0; i<num_slaves; i++) {
-		strcpy(&p[idx], slave_dbdfs[i]);
-		idx += strlen(slave_dbdfs[i]);
-		strcpy(&p[idx], " ");
-		idx ++;
+	rte_eth_dev_stop(port_id);
+	rte_eth_dev_close(port_id);
+	err = rte_eth_dev_detach(port_id, detach_dbdf);
+	if (err != 0) {
+		log_warning("rte_eth_dev_detach(%hhu) failed with error %i",
+			port_id, err);
 	}
+
+	return err;
 }
 
-int virtio_forwarder_bond_add(const char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
-			unsigned num_slaves, unsigned virtio_id)
+static int start_eth_dev(dpdk_port_t port_id)
 {
-	char p[RTE_ETH_NAME_MAX_LEN * MAX_NUM_BOND_SLAVES];
+	int err;
 
-	format_slave_dbdfs(slave_dbdfs, num_slaves, p);
-	log_debug("Got virtio_forwarder_bond_add(<%s>, %u, %u)", p, num_slaves,
-		virtio_id);
+	err = rte_eth_dev_start(port_id);
+	if (err != 0)
+		log_error("rte_eth_dev_start(%hhu) failed with error %i",
+			port_id, err);
+
+	return err;
+}
+
+static int dev_queue_configure(const char *name, dpdk_port_t port_id,
+			unsigned virtio_id, vio_vf_relay_t *relay, bool is_bond)
+{
+	int err;
+	struct rte_eth_conf eth_conf = {0};
+	struct rte_eth_rxconf rx_conf;
+	struct rte_eth_txconf tx_conf;
+
+	log_info("Adding DPDK port %hhu ('%s') to virtio ('%u')",
+		port_id, name, virtio_id);
+
+	eth_conf.rxmode.jumbo_frame = 1;
+	eth_conf.rxmode.max_rx_pkt_len = relay->use_jumbo ? JUMBO_MBUF_SIZE :
+						DEFAULT_MBUF_SIZE;
+	err = rte_eth_dev_configure(port_id, 1, 1, &eth_conf);
+	if (err != 0) {
+		log_error("rte_eth_dev_configure(%hhu, 1, 1) failed with error %i",
+			port_id, err);
+		return 4;
+	}
+
+	err = rte_eth_dev_set_mtu(port_id, relay->use_jumbo ?
+				JUMBO_IP_MTU : DEFAULT_IP_MTU);
+	if (!is_bond && err != 0) {
+		log_error("rte_eth_dev_set_mtu failed with error %i", err);
+		return 4;
+	}
+
+	/*
+	 * Per <http://dpdk.org/doc/api/rte__ethdev_8h.html>, we must setup the
+	 * TX queue before setting up the RX queue.
+	 */
+	build_tx_conf(&tx_conf);
+	err = rte_eth_tx_queue_setup(port_id, 0, 1024,
+				relay->vio.mempool_socket_id, &tx_conf);
+	if (err != 0) {
+		log_error("rte_eth_tx_queue_setup(%hhu, 0, 1024) failed with error %i",
+			port_id, err);
+		return 6;
+	}
+
+	build_rx_conf(&rx_conf);
+	err = rte_eth_rx_queue_setup(port_id, 0, 1024,
+				relay->vio.mempool_socket_id, &rx_conf,
+				relay->vio.mempool);
+	if (err != 0) {
+		log_error("rte_eth_rx_queue_setup(%hhu, 0, 1024) failed with error %i",
+			port_id, err);
+		return 5;
+	}
+
+	return 0;
+}
+
+static int init_vf(const char *pci_dbdf, dpdk_port_t *port_id,
+			unsigned virtio_id, vio_vf_relay_t *relay)
+{
+	int err;
+
+	err = rte_eth_dev_attach(pci_dbdf, port_id);
+	if (err != 0) {
+		/* err is always -1 on error, so no useful additional info.
+		 * Print it anyway for consistency with other error messages. */
+		log_error("rte_eth_dev_attach('%s') failed with error %i",
+			pci_dbdf, err);
+		check_uio_driver_setup(pci_dbdf);
+		return 2;
+	}
+
+	err = dev_queue_configure(pci_dbdf, *port_id, virtio_id, relay, false);
+	if (err) {
+		cleanup_eth_dev(*port_id);
+		return err;
+	}
+
+	return 0;
+}
+
+static int configure_dev_with_virtio(const char *pci_dbdf, dpdk_port_t port_id,
+			unsigned virtio_id, vio_vf_relay_t *relay, bool is_bond)
+{
+	int dpdk_state;
+
+	if (relay->vio.state == VIRTIO_READY) {
+		log_debug("Starting device for relay %u", virtio_id);
+		if (start_eth_dev(port_id) != 0)
+			return 1;
+		dpdk_state = DPDK_READY;
+	} else {
+		log_debug("Not starting device for relay %u since virtio not connected",
+			virtio_id);
+		rte_eth_dev_stop(port_id); /* stop the VF explicitly in case it was still running from a previous process. */
+		dpdk_state = DPDK_ADDED;
+	}
+
+	/* Success */
+	log_info("Added dpdk port %hhu to relay", port_id);
+	relay->dpdk.dpdk_port = port_id;
+	strncpy(relay->dpdk.pci_dbdf, pci_dbdf, 20);
+	relay->id = virtio_id;
+	find_vf2virtio_cpu(relay);
+	relay->dpdk.state = dpdk_state;
+	relay->dpdk.is_bond = is_bond;
+	__sync_synchronize();
+	worker_threads[relay->dpdk.vf2vio_cpu].need_update = true;
 
 	return 0;
 }
@@ -391,17 +510,8 @@ virtio_forwarder_add_vf2(const char *pci_dbdf, unsigned virtio_id, bool conditio
 		pci_dbdf, virtio_id);
 	return 0;
 #else
-#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
-	uint16_t port_id;
-#else
-	uint8_t port_id;
-#endif
-	int rc, err;
-	struct rte_eth_conf eth_conf = {0};
-	struct rte_eth_rxconf rx_conf;
-	struct rte_eth_txconf tx_conf;
-	char detach_dbdf[RTE_ETH_NAME_MAX_LEN];
-	int dpdk_state;
+	dpdk_port_t port_id;
+	int err;
 
 	log_debug("Got virtio_forwarder_add_vf2('%s', %u, conditional=%s)",
 		pci_dbdf, virtio_id, conditional ? "true" : "false");
@@ -426,101 +536,16 @@ virtio_forwarder_add_vf2(const char *pci_dbdf, unsigned virtio_id, bool conditio
 	}
 
 	/* New VF */
-	err = rte_eth_dev_attach(pci_dbdf, &port_id);
-	if (err != 0) {
-		/* err is always -1 on error, so no useful additional info.
-		 * Print it anyway for consistency with other error messages. */
-		log_error("rte_eth_dev_attach('%s') failed with error %i",
-			pci_dbdf, err);
-		check_uio_driver_setup(pci_dbdf);
-		return 2;
-	}
-	eth_conf.rxmode.jumbo_frame = 1;
-	eth_conf.rxmode.max_rx_pkt_len = relay->use_jumbo ? JUMBO_MBUF_SIZE :
-						DEFAULT_MBUF_SIZE;
+	err = init_vf(pci_dbdf, &port_id, virtio_id, relay);
+	if (err)
+		return err;
 
-	log_info("Adding DPDK port %hhu ('%s') to virtio %u",
-		port_id, pci_dbdf, virtio_id);
+	/* Successfully added VF. */
+	err = configure_dev_with_virtio(pci_dbdf, port_id, virtio_id, relay, false);
+	if (err)
+		cleanup_eth_dev(port_id);
 
-	err = rte_eth_dev_configure(port_id, 1, 1, &eth_conf);
-	if (err != 0) {
-		log_error("rte_eth_dev_configure(%hhu, 1, 1) failed with error %i",
-			port_id, err);
-		rc = 4;
-		goto error_exit_detach;
-	}
-	err = rte_eth_dev_set_mtu(port_id, relay->use_jumbo ?
-				JUMBO_IP_MTU : DEFAULT_IP_MTU);
-	if (err != 0) {
-		log_error("rte_eth_dev_set_mtu failed with error %i", err);
-		rc = 4;
-		goto error_exit_detach;
-	}
-	/*
-	 * Per <http://dpdk.org/doc/api/rte__ethdev_8h.html>, we must setup the
-	 * TX queue before setting up the RX queue.
-	 */
-	build_tx_conf(&tx_conf);
-	err = rte_eth_tx_queue_setup(port_id, 0, 1024,
-				relay->vio.mempool_socket_id, &tx_conf);
-	if (err != 0) {
-		log_error("rte_eth_tx_queue_setup(%hhu, 0, 1024) failed with error %i",
-			port_id, err);
-		rc = 6;
-		goto error_exit_deconfigure;
-	}
-
-	build_rx_conf(&rx_conf);
-	err = rte_eth_rx_queue_setup(port_id, 0, 1024,
-				relay->vio.mempool_socket_id, &rx_conf,
-				relay->vio.mempool);
-	if (err != 0) {
-	  log_error("rte_eth_rx_queue_setup(%hhu, 0, 1024) failed with error %i",
-				port_id, err);
-	  rc = 5;
-	  goto error_exit_deconfigure;
-	}
-
-	if (relay->vio.state == VIRTIO_READY) {
-		log_debug("Starting VF for relay %u", virtio_id);
-		err = rte_eth_dev_start(port_id);
-		if (err != 0) {
-			log_error("rte_eth_dev_start(%hhu) failed with error %i",
-				port_id, err);
-			rc = 7;
-			goto error_exit_deconfigure;
-		}
-		dpdk_state = DPDK_READY;
-	} else {
-		log_debug("Not starting VF for relay %u since virtio not connected",
-			virtio_id);
-		rte_eth_dev_stop(port_id); /* stop the VF explicitly in case it was still running from a previous process. */
-		dpdk_state = DPDK_ADDED;
-	}
-
-	/* Success */
-	log_info("Added dpdk port %hhu to relay", port_id);
-	relay->dpdk.dpdk_port = port_id;
-	strncpy(relay->dpdk.pci_dbdf, pci_dbdf, 20);
-	relay->id = virtio_id;
-	find_vf2virtio_cpu(relay);
-	relay->dpdk.state = dpdk_state;
-	__sync_synchronize();
-	worker_threads[relay->dpdk.vf2vio_cpu].need_update = true;
-
-	return 0;
-
-error_exit_deconfigure:
-	rte_eth_dev_close(port_id);
-
-error_exit_detach:
-	err = rte_eth_dev_detach(port_id, detach_dbdf);
-	if (err != 0) {
-		log_warning("During error recovery, rte_eth_dev_detach(%hhu) failed with error %i",
-			port_id, err);
-	}
-
-	return rc;
+	return err;
 #endif /* VIRTIO_ECHO */
 }
 
@@ -528,6 +553,113 @@ int virtio_forwarder_add_vf(const char *pci_dbdf, unsigned virtio_id)
 {
 	/* Original code used unconditional adds/removes. */
 	return virtio_forwarder_add_vf2(pci_dbdf, virtio_id, false);
+}
+
+static void format_slave_dbdfs(char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
+			unsigned num_slaves, char *p)
+{
+	size_t idx = 0;
+
+	for (unsigned i=0; i<num_slaves; i++) {
+		strcpy(&p[idx], slave_dbdfs[i]);
+		idx += strlen(slave_dbdfs[i]);
+		strcpy(&p[idx], " ");
+		idx ++;
+	}
+}
+
+int virtio_forwarder_bond_add(char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
+			unsigned num_slaves, const char *name, uint8_t mode,
+			unsigned virtio_id)
+{
+	char p[RTE_ETH_NAME_MAX_LEN * MAX_NUM_BOND_SLAVES];
+	dpdk_port_t port_id, slave_port_ids[MAX_NUM_BOND_SLAVES], tmp;
+	int err, rc, socket_id;
+
+	format_slave_dbdfs(slave_dbdfs, num_slaves, p);
+	log_debug("Got virtio_forwarder_bond_add(<%s>, %u, %s, %u, %u)", p,
+		num_slaves, name, mode, virtio_id);
+
+	if (virtio_id >= MAX_RELAYS) {
+		log_error("Tried to add bond '%s' to invalid virtio ID %u! (valid range is 0..%u)",
+			name, virtio_id, MAX_RELAYS - 1);
+		return 1;
+	}
+	vio_vf_relay_t *relay= &virtio_vf_relays[virtio_id];
+
+	if (relay->dpdk.state != DPDK_UNINIT) {
+		/* VF/bond already active on virtio instance. */
+		log_error("Tried to add DPDK port to already initialized entity!");
+		return 8;
+	}
+
+	/* XXX: DPDK defines SOCKET_ID_ANY as -1, but the bonding API accepts
+	 * an unsigned... Until they fix it use 0 for unspecified sockets. */
+	socket_id = relay->vio.mempool_socket_id == SOCKET_ID_ANY ?
+					0 : relay->vio.mempool_socket_id;
+	err = rte_eth_bond_create(name, mode, socket_id);
+	if (err < 0) {
+		log_error("rte_eth_bond_create(%s, %u, %d) failed with error %d",
+			name, mode, socket_id, err);
+		return 2;
+	} else {
+		port_id = err;
+	}
+
+	/* Error if a slave is already attached to DPDK. */
+	for (unsigned i=0; i<num_slaves; ++i) {
+		if (rte_eth_dev_get_port_by_name(slave_dbdfs[i], &tmp) == 0) {
+			log_warning("The specified bond slave ('%s') is already in use with port id %u.",
+				slave_dbdfs[i], tmp);
+			rc = 3;
+			goto error_bond_deconfigure;
+		}
+	}
+
+	/* Configure bond. */
+	err = dev_queue_configure(name, port_id, virtio_id, relay, true);
+	if (err) {
+		log_error("Bond configuration failed. Tearing down...");
+		rc = 4;
+		goto error_bond_deconfigure;
+	}
+
+	/* Add slaves to bond. XXX: The queue configure which takes place in
+	 * init_vf may be redundant, as it is done in any case when the bond
+	 * is started - check whether dev attach is adequate here. */
+	for (unsigned i=0; i<num_slaves; ++i) {
+		/* Setup slave interface. */
+		err = init_vf(slave_dbdfs[i], &slave_port_ids[i], virtio_id, relay);
+		if (err) {
+			rc = 5;
+			goto error_slaves_deconfigure;
+		}
+
+		/* Add slave to bond. */
+		rte_eth_bond_slave_add(port_id, slave_port_ids[i]);
+	}
+
+	/* Successfully configured bond. */
+	err = configure_dev_with_virtio(name, port_id, virtio_id, relay, true);
+	if (err) {
+		rc = 6;
+		goto error_slaves_deconfigure;
+	}
+
+	return 0;
+
+error_slaves_deconfigure:
+	/* Deconfigure the other slaves that may have been initialized. */
+	for (unsigned i=0; i<num_slaves; ++i)
+		cleanup_eth_dev(slave_port_ids[i]);
+
+error_bond_deconfigure:
+	err = rte_eth_bond_free(name);
+	if (err)
+		log_warning("During error recovery, rte_eth_bond_free(%s) failed with error %i",
+			name, err);
+
+	return rc;
 }
 
 static int stop_vm2vf_thread(vio_vf_relay_t *relay)
@@ -547,11 +679,41 @@ static int stop_vm2vf_thread(vio_vf_relay_t *relay)
 	return 0;
 }
 
-static int detach_vf(vio_vf_relay_t *relay)
+static int detach_slaves(vio_vf_relay_t *relay)
 {
-	uint8_t port_id = relay->dpdk.dpdk_port;
+	dpdk_port_t port_id = relay->dpdk.dpdk_port;
+	uint16_t slaves[MAX_NUM_BOND_SLAVES] = {0};
+	uint16_t n_slaves;
+	int err;
+
+	if (!relay->dpdk.is_bond) {
+		log_warning("detach_slaves called on non-bond packet relay!");
+		return 0;
+	}
+
+	err = rte_eth_bond_slaves_get(port_id, slaves, MAX_NUM_BOND_SLAVES) ;
+	if (err < 0) {
+		log_error("Error retrieving slave information for bond %s",
+			relay->dpdk.pci_dbdf);
+		return 1;
+	} else {
+		n_slaves = err;
+	}
+	for (unsigned i=0; i<n_slaves; ++i) {
+		if (rte_eth_bond_slave_remove(port_id, slaves[i]))
+			log_warning("Error removing slave %u from device %s",
+				i, relay->dpdk.pci_dbdf);
+	}
+	for (unsigned i=0; i<n_slaves; ++i)
+		cleanup_eth_dev(slaves[i]);
+
+	return 0;
+}
+
+static int detach_device(vio_vf_relay_t *relay)
+{
+	dpdk_port_t port_id = relay->dpdk.dpdk_port;
 	char *pci_dbdf = relay->dpdk.pci_dbdf;
-	char detach_dbdf[RTE_ETH_NAME_MAX_LEN];
 	int err, tmpidx;
 
 	err = stop_vm2vf_thread(relay);
@@ -566,15 +728,18 @@ static int detach_vf(vio_vf_relay_t *relay)
 
 	/* Detach VF. */
 	log_debug("Stopping PCI '%s' device (port %hhu)", pci_dbdf, port_id);
-	rte_eth_dev_stop(port_id);
-	rte_eth_dev_close(port_id);
-	err = rte_eth_dev_detach(port_id, detach_dbdf);
+	if (relay->dpdk.is_bond) {
+		detach_slaves(relay);
+		rte_eth_dev_stop(port_id);
+		rte_eth_dev_close(port_id);
+		err = rte_eth_bond_free(relay->dpdk.pci_dbdf);
+	} else {
+		err = cleanup_eth_dev(port_id);
+	}
 	if (err == 0) {
 		log_debug("Removed PCI '%s' device as port %hhu",
 			pci_dbdf, port_id);
 	} else {
-		log_error("rte_eth_dev_detach(%hhu) failed with error %i",
-			port_id, err);
 		return 2;
 	}
 	log_info("removing DPDK port %hhu ('%s') from virtio %u", port_id,
@@ -605,7 +770,7 @@ virtio_forwarder_remove_vf2(const char *pci_dbdf, unsigned virtio_id,
 	vio_vf_relay_t *relay = &virtio_vf_relays[virtio_id];
 	if (relay->dpdk.state == DPDK_READY || relay->dpdk.state == DPDK_ADDED) {
 		if (pci_dbdf_equal(pci_dbdf, relay->dpdk.pci_dbdf)) {
-			err = detach_vf(relay);
+			err = detach_device(relay);
 			if (err)
 				return err;
 		} else {
@@ -1233,6 +1398,7 @@ static struct rte_mempool *alloc_mempool(unsigned virtio_id, int socket_id)
 	if (rte_mempool_lookup(buf))
 		snprintf(buf, 32, "mempoolx_%u", virtio_id);
 
+	/* TODO: Increase memory for bonds. */
 	return rte_pktmbuf_pool_create(buf, 4096-1, 32-1, 0,
 					(vio_worker_conf.use_jumbo ||
 					vio_worker_conf.enable_tso) ?
@@ -1294,6 +1460,7 @@ int virtio_forwarders_initialize(const struct virtio_vhostuser_conf *conf)
 				log_warning("virtio %u has no specified CPU, NUMA memory allocation may be non-optimal on this multi-socket platform!", w);
 #endif
 		}
+		virtio_vf_relays[w].dpdk.is_bond = false;
 		virtio_vf_relays[w].vio.mempool_socket_id = socket_id;
 		virtio_vf_relays[w].use_jumbo = conf->use_jumbo;
 		virtio_vf_relays[w].vio.mempool=alloc_mempool(w, socket_id);
@@ -1418,11 +1585,16 @@ static int migrate_numa(vio_vf_relay_t *relay, int newnode)
 	log_info("Relay %u's mempool affinity requires change from %d to %d to align with the connecting guest.",
 		relay->id, relay->vio.mempool_socket_id, newnode);
 
+	if (relay->dpdk.state == DPDK_ADDED && relay->dpdk.is_bond) {
+		log_info("Mempool migration not supported for bonded interfaces.");
+		return 1;
+	}
+
 	/* Try to allocate a new mempool. */
 	new_pool = alloc_mempool(relay->id, newnode);
 	if (!new_pool) {
-		log_error("Could not alloc mempool for worker %u! Previous configuration will be retained",
-			relay->id);
+		log_error("Could not alloc mempool for worker %u on socket %d! Previous configuration will be retained",
+			newnode, relay->id);
 		return -1;
 	}
 
@@ -1569,10 +1741,10 @@ int virtio_forwarder_add_virtio(void *virtionet, unsigned id)
 		/* We now have NUMA info to use to possibly find a better CPU. */
 		find_vf2virtio_cpu(relay);
 		log_debug("Starting VF for relay %u", relay->id);
-		err = rte_eth_dev_start(relay->dpdk.dpdk_port);
+		err = start_eth_dev(relay->dpdk.dpdk_port);
 		if (err != 0) {
-			log_warning("rte_eth_dev_start(relay %u) failed with error %i ('%s')",
-				relay->id, err, rte_strerror(-err));
+			log_warning("start_eth_dev(port %u) failed with error %i ('%s')",
+				relay->dpdk.dpdk_port, err, rte_strerror(-err));
 		} else {
 			relay->dpdk.state = DPDK_READY;
 			__sync_synchronize();

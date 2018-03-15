@@ -45,7 +45,6 @@ except ImportError:
 
 def _syntax():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--zmq_ep', help='ZeroMQ port control endpoint')
     parser.add_argument(
         'op', metavar='OP', choices=('add', 'remove'),
         help='port control operation',
@@ -60,7 +59,16 @@ def _syntax():
     )
     parser.add_argument(
         '--pci-addr', default=[], action='append',
-        help='PCI address, e.g. 0000:11:22.3')
+        help='PCI address, e.g. 0000:11:22.3. Option may apear multiple times'
+    )
+    parser.add_argument(
+        '--name', help='Bond interface name'
+    )
+    parser.add_argument(
+        '--mode', choices=(0, 1, 2, 3, 4, 5, 6), type=int, default=1,
+        help='Bond mode: 0=ROUND_ROBIN; 1=ACTIVE_BACKUP; 2=BALANCE; 3=BROADCAST; 4=8023AD; 5=TLB; 6=ALB'
+    )
+    parser.add_argument('--zmq_ep', help='ZeroMQ port control endpoint')
     parser.add_argument(
         '--conditional', type=bool,
         help='whether to make a conditional request (default: unspecified)'
@@ -123,6 +131,9 @@ def main():
             msg.pci_addrs.extend([parsed_addr])
     if args.conditional is not None:
         msg.conditional = args.conditional
+    if args.name is not None:
+        msg.name = args.name
+        msg.mode = args.mode
 
     if not args.send_garbage:
         socket.send(msg.SerializePartialToString())

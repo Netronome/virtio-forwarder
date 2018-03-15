@@ -91,12 +91,14 @@ virtio_forwarder_remove_vf2(const char *pci_dbdf, unsigned virtio_id,
 /**
  * @brief Add bond to virtio-forwarder
  * @param slave_dbdfs list od PCI domain:bus:device.function address strings
+ * @param name name of new link bonding device
+ * @param mode mode to initialize bonding device in
  * @param num_slaves number of slave device addresses contained in slave_dbdfs
  * @param virtio_id virtio instance to which the bond must be connected
  */
-int virtio_forwarder_bond_add(const char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
-			unsigned num_slaves, unsigned virtio_id);
-//			unsigned virtio_id);
+int virtio_forwarder_bond_add(char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
+			unsigned num_slaves, const char *name, uint8_t mode,
+			unsigned virtio_id);
 
 /**
  * @brief Change the cpus that service a relay.

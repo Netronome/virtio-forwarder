@@ -59,6 +59,10 @@ message PortControlRequest {
     // True to ignore requests that wouldn't change the relay state, rather
     // than treating them as errors.
     optional bool conditional = 4 [default = true];
+
+    // If adding a bond, its name and mode
+    optional string name = 5;
+    optional uint32 mode = 6;
 }
 
 // Response to PortControlRequest.
