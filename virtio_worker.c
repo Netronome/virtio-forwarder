@@ -78,6 +78,7 @@
 #define MAX_MULTIQUEUE_PAIRS (32)
 #define MAX_CPUS 64
 #define BURST_LEN 32
+#define NUM_PKTMBUF_POOL 4096
 
 /*
  * Type declarations
@@ -148,6 +149,7 @@ struct relay_dpdk {
 	int vf2vio_cpu;
 	volatile dpdk_state_t state;
 	bool is_bond;
+	unsigned num_slaves;
 	dpdk_port_t dpdk_port;
 	char pci_dbdf[20];
 	struct rte_mbuf *rx_pkts[BURST_LEN];
@@ -393,6 +395,101 @@ static int start_eth_dev(dpdk_port_t port_id)
 	return err;
 }
 
+static struct rte_mempool *alloc_mempool(unsigned virtio_id, int socket_id,
+				unsigned n)
+{
+	char buf[32];
+
+	/* Alternate between these names to allow check before migration. */
+	snprintf(buf, 32, "mempool_%u", virtio_id);
+	if (rte_mempool_lookup(buf))
+		snprintf(buf, 32, "mempoolx_%u", virtio_id);
+
+	return rte_pktmbuf_pool_create(buf, n, 32-1, 0,
+					(vio_worker_conf.use_jumbo ||
+					vio_worker_conf.enable_tso) ?
+					JUMBO_MBUF_SIZE : DEFAULT_MBUF_SIZE,
+					socket_id);
+}
+
+static int
+migrate_mempool(vio_vf_relay_t *relay, int newnode, unsigned num_pktmbufs)
+{
+#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+	uint8_t port_id = relay->dpdk.dpdk_port;
+	struct rte_mempool *new_pool;
+
+	/* Try to allocate a new mempool. */
+	new_pool = alloc_mempool(relay->id, newnode, num_pktmbufs);
+	if (!new_pool) {
+		log_error("Could not alloc mempool for virtio %u on socket %d! Previous configuration will be retained",
+			relay->id, newnode);
+		return -1;
+	}
+
+	/**
+	 * On success, stop the VF associated with this relay and reconfigure.
+	 * See http://dpdk.org/doc/api/rte__ethdev_8h.html
+	 */
+	assert(relay->dpdk.state != DPDK_READY);
+	if (relay->dpdk.state == DPDK_ADDED) {
+		log_debug("Previously setup VF requires update. Stopping VF...");
+		rte_eth_dev_stop(port_id);
+	}
+
+	/* Free old mempool. rte_mempool docs state that no other cores should
+	 * use the  mempool while it is being freed. */
+	while (rte_spinlock_trylock(&relay->vio.sl) == 0);
+	while (rte_spinlock_trylock(&relay->dpdk.sl) == 0);
+	log_debug("Migrating mempool for relay %u...", relay->id);
+	if (relay->vio.mempool)
+		rte_mempool_free(relay->vio.mempool);
+	relay->vio.mempool = new_pool;
+	relay->vio.mempool_socket_id = newnode;
+	__sync_synchronize();
+	rte_spinlock_unlock(&relay->dpdk.sl);
+	rte_spinlock_unlock(&relay->vio.sl);
+
+	/* Reconfigure VF if it was previously configured. */
+	if (relay->dpdk.state == DPDK_ADDED) {
+		int err;
+		struct rte_eth_rxconf rx_conf;
+		struct rte_eth_txconf tx_conf;
+
+		log_info("Updating VF %s with the new NUMA configuration...",
+			relay->dpdk.pci_dbdf);
+		/* Reconfigure queues. */
+		build_tx_conf(&tx_conf);
+		err = rte_eth_tx_queue_setup(port_id, 0, 1024,
+					relay->vio.mempool_socket_id, &tx_conf);
+		if (err != 0) {
+			log_error("rte_eth_tx_queue_setup(%hhu, 0, 1024) failed with error %i",
+				port_id, err);
+			rte_eth_dev_close(port_id);
+			return -1;
+		}
+		build_rx_conf(&rx_conf);
+		err = rte_eth_rx_queue_setup(port_id, 0, 1024,
+					relay->vio.mempool_socket_id, &rx_conf,
+					relay->vio.mempool);
+		if (err != 0) {
+			log_error("rte_eth_rx_queue_setup(%hhu, 0, 1024) failed with error %i",
+				port_id, err);
+			rte_eth_dev_close(port_id);
+			return -1;
+		}
+		log_info("Successfully re-configured VF %s for relay %u",
+			relay->dpdk.pci_dbdf, relay->id);
+	}
+
+	return 0;
+#else
+	log_info("Mempool migration not supported");
+
+	return 0;
+#endif
+}
+
 static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 			unsigned virtio_id, vio_vf_relay_t *relay, bool is_bond)
 {
@@ -414,11 +511,27 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 		return 4;
 	}
 
-	err = rte_eth_dev_set_mtu(port_id, relay->use_jumbo ?
-				JUMBO_IP_MTU : DEFAULT_IP_MTU);
-	if (!is_bond && err != 0) {
-		log_error("rte_eth_dev_set_mtu failed with error %i", err);
-		return 4;
+	if (!is_bond) {
+		err = rte_eth_dev_set_mtu(port_id, relay->use_jumbo ?
+					JUMBO_IP_MTU : DEFAULT_IP_MTU);
+		if (err != 0) {
+			log_error("rte_eth_dev_set_mtu failed with error %i",
+				err);
+			return 4;
+		}
+	}
+
+	if (!relay->vio.mempool) {
+		struct rte_mempool *mpool;
+		mpool = alloc_mempool(relay->id, relay->vio.mempool_socket_id,
+				NUM_PKTMBUF_POOL-1);
+		if (!mpool) {
+			log_error("Could not alloc mempool for virtio %u on socket %u!",
+				relay->id, relay->vio.mempool_socket_id);
+			return -1;
+		} else {
+			relay->vio.mempool = mpool;
+		}
 	}
 
 	/*
@@ -472,7 +585,8 @@ static int init_vf(const char *pci_dbdf, dpdk_port_t *port_id,
 }
 
 static int configure_dev_with_virtio(const char *pci_dbdf, dpdk_port_t port_id,
-			unsigned virtio_id, vio_vf_relay_t *relay, bool is_bond)
+			unsigned virtio_id, vio_vf_relay_t *relay,
+			bool is_bond, unsigned num_slaves)
 {
 	int dpdk_state;
 
@@ -496,6 +610,7 @@ static int configure_dev_with_virtio(const char *pci_dbdf, dpdk_port_t port_id,
 	find_vf2virtio_cpu(relay);
 	relay->dpdk.state = dpdk_state;
 	relay->dpdk.is_bond = is_bond;
+	relay->dpdk.num_slaves = num_slaves;
 	__sync_synchronize();
 	worker_threads[relay->dpdk.vf2vio_cpu].need_update = true;
 
@@ -541,7 +656,8 @@ virtio_forwarder_add_vf2(const char *pci_dbdf, unsigned virtio_id, bool conditio
 		return err;
 
 	/* Successfully added VF. */
-	err = configure_dev_with_virtio(pci_dbdf, port_id, virtio_id, relay, false);
+	err = configure_dev_with_virtio(pci_dbdf, port_id, virtio_id, relay,
+					false, 0);
 	if (err)
 		cleanup_eth_dev(port_id);
 
@@ -616,6 +732,12 @@ int virtio_forwarder_bond_add(char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME
 		}
 	}
 
+	/* XXX: Bonds require more memory than ordinary VFs. At this point, we
+	 * cannot rely on any DPDK info in the relay struct, and must therefore
+	 * assume that the old memory [if allocated] is insufficient. */
+	if (migrate_mempool(relay, socket_id, num_slaves*NUM_PKTMBUF_POOL-1))
+		log_warning("Bond memory allocation failed. Active-active implementations may fail due to insufficient resources");
+
 	/* Configure bond. */
 	err = dev_queue_configure(name, port_id, virtio_id, relay, true);
 	if (err) {
@@ -640,7 +762,8 @@ int virtio_forwarder_bond_add(char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME
 	}
 
 	/* Successfully configured bond. */
-	err = configure_dev_with_virtio(name, port_id, virtio_id, relay, true);
+	err = configure_dev_with_virtio(name, port_id, virtio_id, relay, true,
+					num_slaves);
 	if (err) {
 		rc = 6;
 		goto error_slaves_deconfigure;
@@ -746,6 +869,12 @@ static int detach_device(vio_vf_relay_t *relay)
 		pci_dbdf, relay->id);
 	relay->dpdk.dpdk_port = -1;
 	relay->dpdk.pci_dbdf[0] = 0;
+	relay->dpdk.is_bond = false;
+	relay->dpdk.num_slaves = 0;
+	if (relay->vio.state == VIRTIO_UNINIT) {
+		rte_mempool_free(relay->vio.mempool);
+		relay->vio.mempool = NULL;
+	}
 	log_info("Removed dpdk port %hhu from virtio", port_id);
 
 	return err;
@@ -1389,23 +1518,6 @@ static int worker_func(void *arg __attribute__((unused)))
 	return 0;
 }
 
-static struct rte_mempool *alloc_mempool(unsigned virtio_id, int socket_id)
-{
-	char buf[32];
-
-	/* Alternate between these names to allow check before migration. */
-	snprintf(buf, 32, "mempool_%u", virtio_id);
-	if (rte_mempool_lookup(buf))
-		snprintf(buf, 32, "mempoolx_%u", virtio_id);
-
-	/* TODO: Increase memory for bonds. */
-	return rte_pktmbuf_pool_create(buf, 4096-1, 32-1, 0,
-					(vio_worker_conf.use_jumbo ||
-					vio_worker_conf.enable_tso) ?
-					JUMBO_MBUF_SIZE : DEFAULT_MBUF_SIZE,
-					socket_id);
-}
-
 static void *init_static_vfs(void *ptr __attribute__((unused)))
 {
 	const struct virtio_vhostuser_conf *conf = &vio_worker_conf;
@@ -1461,13 +1573,20 @@ int virtio_forwarders_initialize(const struct virtio_vhostuser_conf *conf)
 #endif
 		}
 		virtio_vf_relays[w].dpdk.is_bond = false;
+		virtio_vf_relays[w].dpdk.num_slaves = 0;
 		virtio_vf_relays[w].vio.mempool_socket_id = socket_id;
 		virtio_vf_relays[w].use_jumbo = conf->use_jumbo;
-		virtio_vf_relays[w].vio.mempool=alloc_mempool(w, socket_id);
+#if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
+		virtio_vf_relays[w].vio.mempool = alloc_mempool(w, socket_id,
+							NUM_PKTMBUF_POOL-1);
 		if (!virtio_vf_relays[w].vio.mempool) {
 		  log_critical("Could not alloc mempool for worker %u!", w);
 		  return -1;
 		}
+#else
+		/* Mempool freeing allows dynamic mempools. */
+		virtio_vf_relays[w].vio.mempool = NULL;
+#endif
 		virtio_vf_relays[w].vio.vio2vf_cpu = -1;
 		virtio_vf_relays[w].dpdk.vf2vio_cpu = -1;
 		virtio_vf_relays[w].dpdk.rx_pkts_avail = 0;
@@ -1577,86 +1696,6 @@ static int get_guest_numa(int virtionet)
 #endif
 
 #if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
-static int migrate_numa(vio_vf_relay_t *relay, int newnode)
-{
-	uint8_t port_id = relay->dpdk.dpdk_port;
-	struct rte_mempool *new_pool;
-
-	log_info("Relay %u's mempool affinity requires change from %d to %d to align with the connecting guest.",
-		relay->id, relay->vio.mempool_socket_id, newnode);
-
-	if (relay->dpdk.state == DPDK_ADDED && relay->dpdk.is_bond) {
-		log_info("Mempool migration not supported for bonded interfaces.");
-		return 1;
-	}
-
-	/* Try to allocate a new mempool. */
-	new_pool = alloc_mempool(relay->id, newnode);
-	if (!new_pool) {
-		log_error("Could not alloc mempool for worker %u on socket %d! Previous configuration will be retained",
-			newnode, relay->id);
-		return -1;
-	}
-
-	/**
-	 * On success, stop the VF associated with this relay and reconfigure.
-	 * See http://dpdk.org/doc/api/rte__ethdev_8h.html
-	 */
-	assert(relay->dpdk.state != DPDK_READY);
-	if (relay->dpdk.state == DPDK_ADDED) {
-		log_debug("Previously setup VF requires update. Stopping VF...");
-		rte_eth_dev_stop(port_id);
-	}
-
-	/* Free old mempool. rte_mempool docs state that no other cores should
-	 * use the  mempool while it is being freed. These locks are probably
-	 * redundant because of the virtio and dpdk state at this point. */
-	while (rte_spinlock_trylock(&relay->vio.sl) == 0);
-	while (rte_spinlock_trylock(&relay->dpdk.sl) == 0);
-	log_debug("Migrating mempool for relay %u...", relay->id);
-	rte_mempool_free(relay->vio.mempool);
-	relay->vio.mempool = new_pool;
-	relay->vio.mempool_socket_id = newnode;
-	rte_spinlock_unlock(&relay->vio.sl);
-	rte_spinlock_unlock(&relay->dpdk.sl);
-
-	/* Reconfigure VF if it was previously configured. */
-	if (relay->dpdk.state == DPDK_ADDED) {
-		int err;
-		struct rte_eth_rxconf rx_conf;
-		struct rte_eth_txconf tx_conf;
-
-		log_info("Updating VF %s with the new NUMA configuration...",
-			relay->dpdk.pci_dbdf);
-		/* Reconfigure queues. */
-		build_tx_conf(&tx_conf);
-		err = rte_eth_tx_queue_setup(port_id, 0, 1024,
-					relay->vio.mempool_socket_id, &tx_conf);
-		if (err != 0) {
-			log_error("rte_eth_tx_queue_setup(%hhu, 0, 1024) failed with error %i",
-				port_id, err);
-			rte_eth_dev_close(port_id);
-			return -1;
-		}
-		build_rx_conf(&rx_conf);
-		err = rte_eth_rx_queue_setup(port_id, 0, 1024,
-					relay->vio.mempool_socket_id, &rx_conf,
-					relay->vio.mempool);
-		if (err != 0) {
-			log_error("rte_eth_rx_queue_setup(%hhu, 0, 1024) failed with error %i",
-				port_id, err);
-			rte_eth_dev_close(port_id);
-			return -1;
-		}
-		log_info("Successfully re-configured VF %s for relay %u",
-			relay->dpdk.pci_dbdf, relay->id);
-	}
-
-	return 0;
-}
-#endif
-
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
 int virtio_forwarder_add_virtio(int virtionet, unsigned id)
 #else
 int virtio_forwarder_add_virtio(void *virtionet, unsigned id)
@@ -1701,9 +1740,28 @@ int virtio_forwarder_add_virtio(void *virtionet, unsigned id)
 #if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
 	/* Use guest numa to align mempool. */
 	int newnode = get_guest_numa(virtionet);
-	if (relay->vio.mempool_socket_id != newnode &&
-			newnode != SOCKET_ID_ANY)
-		migrate_numa(relay, newnode);
+	if (!relay->vio.mempool) {
+		struct rte_mempool *mpool;
+		mpool = alloc_mempool(relay->id, newnode, NUM_PKTMBUF_POOL-1);
+		if (!mpool) {
+			log_error("Could not alloc mempool for virtio %u on socket %d!",
+				relay->id, newnode);
+			return -1;
+		} else {
+			relay->vio.mempool = mpool;
+			relay->vio.mempool_socket_id = newnode;
+		}
+	} else if (relay->vio.mempool_socket_id != newnode &&
+			newnode != SOCKET_ID_ANY) {
+		unsigned n;
+		log_info("Relay %u's mempool affinity requires change from %d to %d to align with the connecting guest.",
+			relay->id, relay->vio.mempool_socket_id, newnode);
+		if (relay->dpdk.is_bond)
+			n = relay->dpdk.num_slaves * NUM_PKTMBUF_POOL - 1;
+		else
+			n = NUM_PKTMBUF_POOL - 1;
+		migrate_mempool(relay, newnode, n);
+	}
 #endif
 
 	find_virtio2vf_cpu(relay);
@@ -1819,6 +1877,9 @@ void virtio_forwarder_remove_virtio(unsigned id)
 		relay->dpdk.state = DPDK_ADDED;
 		__sync_synchronize();
 		worker_threads[relay->dpdk.vf2vio_cpu].need_update = true;
+	} else {
+		rte_mempool_free(relay->vio.mempool);
+		relay->vio.mempool = NULL;
 	}
 }
 
