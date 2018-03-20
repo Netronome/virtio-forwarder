@@ -35,7 +35,7 @@ import argparse
 import zmq
 import re
 try:
-    from protobuf.virtioforwarder import virtioforwarder_pb2 as relay_
+    from protobuf.virtioforwarder import virtioforwarder_pb2 as relay
 except ImportError:
     import os
     import sys
