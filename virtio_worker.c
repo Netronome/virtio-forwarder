@@ -66,7 +66,9 @@
 #if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
 #include <numaif.h>
 #endif
+#ifdef CONFIG_RTE_LIBRTE_PMD_BOND
 #include <rte_eth_bond.h>
+#endif
 
 /* TODO: make MTU configurable (also impacts hugepage allocation in dpdk_eal.c) */
 #define JUMBO_IP_MTU (9000)
@@ -412,10 +414,10 @@ static struct rte_mempool *alloc_mempool(unsigned virtio_id, int socket_id,
 					socket_id);
 }
 
+#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
 static int
 migrate_mempool(vio_vf_relay_t *relay, int newnode, unsigned num_pktmbufs)
 {
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
 	uint8_t port_id = relay->dpdk.dpdk_port;
 	struct rte_mempool *new_pool;
 
@@ -483,12 +485,8 @@ migrate_mempool(vio_vf_relay_t *relay, int newnode, unsigned num_pktmbufs)
 	}
 
 	return 0;
-#else
-	log_info("Mempool migration not supported");
-
-	return 0;
-#endif
 }
+#endif
 
 static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 			unsigned virtio_id, vio_vf_relay_t *relay, bool is_bond)
@@ -689,12 +687,14 @@ int virtio_forwarder_bond_add(char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME
 			unsigned virtio_id)
 {
 	char p[RTE_ETH_NAME_MAX_LEN * MAX_NUM_BOND_SLAVES];
-	dpdk_port_t port_id, slave_port_ids[MAX_NUM_BOND_SLAVES], tmp;
-	int err, rc, socket_id;
 
 	format_slave_dbdfs(slave_dbdfs, num_slaves, p);
 	log_debug("Got virtio_forwarder_bond_add(<%s>, %u, %s, %u, %u)", p,
 		num_slaves, name, mode, virtio_id);
+
+#ifdef CONFIG_RTE_LIBRTE_PMD_BOND
+	dpdk_port_t port_id, slave_port_ids[MAX_NUM_BOND_SLAVES], tmp;
+	int err, rc, socket_id;
 
 	if (virtio_id >= MAX_RELAYS) {
 		log_error("Tried to add bond '%s' to invalid virtio ID %u! (valid range is 0..%u)",
@@ -783,6 +783,11 @@ error_bond_deconfigure:
 			name, err);
 
 	return rc;
+#else
+	log_warning("Bonding not supported for this version of DPDK");
+
+	return 0;
+#endif
 }
 
 static int stop_vm2vf_thread(vio_vf_relay_t *relay)
@@ -802,11 +807,12 @@ static int stop_vm2vf_thread(vio_vf_relay_t *relay)
 	return 0;
 }
 
-static int detach_slaves(vio_vf_relay_t *relay)
+static int detach_slaves(vio_vf_relay_t *relay __attribute__((unused)))
 {
+#ifdef CONFIG_RTE_LIBRTE_PMD_BOND
 	dpdk_port_t port_id = relay->dpdk.dpdk_port;
-	uint16_t slaves[MAX_NUM_BOND_SLAVES] = {0};
-	uint16_t n_slaves;
+	dpdk_port_t slaves[MAX_NUM_BOND_SLAVES] = {0};
+	dpdk_port_t n_slaves;
 	int err;
 
 	if (!relay->dpdk.is_bond) {
@@ -830,6 +836,7 @@ static int detach_slaves(vio_vf_relay_t *relay)
 	for (unsigned i=0; i<n_slaves; ++i)
 		cleanup_eth_dev(slaves[i]);
 
+#endif
 	return 0;
 }
 
@@ -855,7 +862,9 @@ static int detach_device(vio_vf_relay_t *relay)
 		detach_slaves(relay);
 		rte_eth_dev_stop(port_id);
 		rte_eth_dev_close(port_id);
+#ifdef CONFIG_RTE_LIBRTE_PMD_BOND
 		err = rte_eth_bond_free(relay->dpdk.pci_dbdf);
+#endif
 	} else {
 		err = cleanup_eth_dev(port_id);
 	}
@@ -871,10 +880,12 @@ static int detach_device(vio_vf_relay_t *relay)
 	relay->dpdk.pci_dbdf[0] = 0;
 	relay->dpdk.is_bond = false;
 	relay->dpdk.num_slaves = 0;
+#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
 	if (relay->vio.state == VIRTIO_UNINIT) {
 		rte_mempool_free(relay->vio.mempool);
 		relay->vio.mempool = NULL;
 	}
+#endif
 	log_info("Removed dpdk port %hhu from virtio", port_id);
 
 	return err;
@@ -1877,10 +1888,13 @@ void virtio_forwarder_remove_virtio(unsigned id)
 		relay->dpdk.state = DPDK_ADDED;
 		__sync_synchronize();
 		worker_threads[relay->dpdk.vf2vio_cpu].need_update = true;
-	} else {
+	}
+#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+	else {
 		rte_mempool_free(relay->vio.mempool);
 		relay->vio.mempool = NULL;
 	}
+#endif
 }
 
 void virtio_forwarder_vring_state_change(unsigned id, unsigned queue_id, int enable)

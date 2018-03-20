@@ -44,7 +44,9 @@
 #include "sriov.h"
 #include "virtio_worker.h"
 #include "zmq_service.h"
+#ifdef CONFIG_RTE_LIBRTE_PMD_BOND
 #include <rte_eth_bond.h>
+#endif
 
 struct port_control_req_buffer {
 	char dbdf_addrs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN];
@@ -243,8 +245,10 @@ handle_PortControlRequest(
 			b.name = pc->name;
 			if (pc->has_mode)
 				b.mode = pc->mode;
+#ifdef CONFIG_RTE_LIBRTE_PMD_BOND
 			else
 				b.mode = BONDING_MODE_ACTIVE_BACKUP;
+#endif
 		}
 
 		bool conditional;
