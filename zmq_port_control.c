@@ -44,7 +44,7 @@
 #include "sriov.h"
 #include "virtio_worker.h"
 #include "zmq_service.h"
-#ifdef CONFIG_RTE_LIBRTE_PMD_BOND
+#ifdef RTE_LIBRTE_PMD_BOND
 #include <rte_eth_bond.h>
 #endif
 
@@ -245,7 +245,7 @@ handle_PortControlRequest(
 			b.name = pc->name;
 			if (pc->has_mode)
 				b.mode = pc->mode;
-#ifdef CONFIG_RTE_LIBRTE_PMD_BOND
+#ifdef RTE_LIBRTE_PMD_BOND
 			else
 				b.mode = BONDING_MODE_ACTIVE_BACKUP;
 #endif

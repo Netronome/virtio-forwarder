@@ -66,7 +66,7 @@
 #if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
 #include <numaif.h>
 #endif
-#ifdef CONFIG_RTE_LIBRTE_PMD_BOND
+#ifdef RTE_LIBRTE_PMD_BOND
 #include <rte_eth_bond.h>
 #endif
 
@@ -414,10 +414,10 @@ static struct rte_mempool *alloc_mempool(unsigned virtio_id, int socket_id,
 					socket_id);
 }
 
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
-static int
+static int __attribute__((unused))
 migrate_mempool(vio_vf_relay_t *relay, int newnode, unsigned num_pktmbufs)
 {
+#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
 	uint8_t port_id = relay->dpdk.dpdk_port;
 	struct rte_mempool *new_pool;
 
@@ -485,8 +485,13 @@ migrate_mempool(vio_vf_relay_t *relay, int newnode, unsigned num_pktmbufs)
 	}
 
 	return 0;
-}
+#else
+	log_warning("migrate_mempool(relay %u, dest node %d, pktmbufs %u) not supported for this version of DPDK",
+		relay->id, newnode, num_pktmbufs);
+
+	return 1;
 #endif
+}
 
 static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 			unsigned virtio_id, vio_vf_relay_t *relay, bool is_bond)
@@ -692,8 +697,8 @@ int virtio_forwarder_bond_add(char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME
 	log_debug("Got virtio_forwarder_bond_add(<%s>, %u, %s, %u, %u)", p,
 		num_slaves, name, mode, virtio_id);
 
-#ifdef CONFIG_RTE_LIBRTE_PMD_BOND
-	dpdk_port_t port_id, slave_port_ids[MAX_NUM_BOND_SLAVES], tmp;
+#ifdef RTE_LIBRTE_PMD_BOND
+	dpdk_port_t port_id, slave_port_ids[MAX_NUM_BOND_SLAVES];
 	int err, rc, socket_id;
 
 	if (virtio_id >= MAX_RELAYS) {
@@ -722,8 +727,10 @@ int virtio_forwarder_bond_add(char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME
 		port_id = err;
 	}
 
+#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
 	/* Error if a slave is already attached to DPDK. */
 	for (unsigned i=0; i<num_slaves; ++i) {
+		dpdk_port_t tmp;
 		if (rte_eth_dev_get_port_by_name(slave_dbdfs[i], &tmp) == 0) {
 			log_warning("The specified bond slave ('%s') is already in use with port id %u.",
 				slave_dbdfs[i], tmp);
@@ -731,6 +738,7 @@ int virtio_forwarder_bond_add(char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME
 			goto error_bond_deconfigure;
 		}
 	}
+#endif
 
 	/* XXX: Bonds require more memory than ordinary VFs. At this point, we
 	 * cannot rely on any DPDK info in the relay struct, and must therefore
@@ -809,7 +817,7 @@ static int stop_vm2vf_thread(vio_vf_relay_t *relay)
 
 static int detach_slaves(vio_vf_relay_t *relay __attribute__((unused)))
 {
-#ifdef CONFIG_RTE_LIBRTE_PMD_BOND
+#ifdef RTE_LIBRTE_PMD_BOND
 	dpdk_port_t port_id = relay->dpdk.dpdk_port;
 	dpdk_port_t slaves[MAX_NUM_BOND_SLAVES] = {0};
 	dpdk_port_t n_slaves;
@@ -862,7 +870,7 @@ static int detach_device(vio_vf_relay_t *relay)
 		detach_slaves(relay);
 		rte_eth_dev_stop(port_id);
 		rte_eth_dev_close(port_id);
-#ifdef CONFIG_RTE_LIBRTE_PMD_BOND
+#ifdef RTE_LIBRTE_PMD_BOND
 		err = rte_eth_bond_free(relay->dpdk.pci_dbdf);
 #endif
 	} else {
