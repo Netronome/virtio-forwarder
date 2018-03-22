@@ -122,7 +122,7 @@ int dpdk_eal_initialize(const struct dpdk_conf *conf)
 				(conf->use_jumbo || conf->enable_tso) ?
 				"2750" : "768");
 		else
-			l += snprintf(buf + l, 32 - l, "0");
+			l += snprintf(buf + l, 32 - l, "1");
 	}
 	add_arg(&argv, &argc, buf);
 	optind = 0;
