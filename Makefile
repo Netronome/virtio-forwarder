@@ -87,6 +87,14 @@ CFLAGS += -Ipb2
 
 LDLIBS += -lprotobuf-c -lzmq
 
+ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),y)
+ifneq ($(CONFIG_RTE_BUILD_COMBINE_LIBS),y)
+ifeq ($(CONFIG_RTE_LIBRTE_PMD_BOND),y)
+LDLIBS += -lrte_pmd_bond
+endif
+endif
+endif
+
 .PHONY: all version deb rpm vio_install vio_uninstall vio_installdirs doc prepare_docs manual
 
 #
