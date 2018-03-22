@@ -312,7 +312,7 @@ static void check_uio_driver_setup(const char *pci_dbdf)
 		char *s = strrchr(linkname, '/');
 		if (s && (len - (s - linkname) > 1)) {
 			s += 1;
-			if (strstr(s, "uio") == 0)
+			if (strstr(s, "uio") == 0 && strstr(s, "vfio") == 0)
 				log_warning("PCI '%s' should be assigned to a UIO driver for use with virtio-forwarder, but is assigned to '%s'",
 					pci_dbdf, s);
 			else
