@@ -529,8 +529,9 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 		mpool = alloc_mempool(relay->id, relay->vio.mempool_socket_id,
 				NUM_PKTMBUF_POOL-1);
 		if (!mpool) {
-			log_error("Could not alloc mempool for virtio %u on socket %u!",
-				relay->id, relay->vio.mempool_socket_id);
+			log_error("Could not alloc mempool for virtio %u on socket %u! rte_errno = %d (%s).",
+				relay->id, relay->vio.mempool_socket_id,
+				rte_errno, rte_strerror(rte_errno));
 			return -1;
 		} else {
 			relay->vio.mempool = mpool;
@@ -609,7 +610,6 @@ static int configure_dev_with_virtio(const char *pci_dbdf, dpdk_port_t port_id,
 	log_info("Added dpdk port %hhu to relay", port_id);
 	relay->dpdk.dpdk_port = port_id;
 	strncpy(relay->dpdk.pci_dbdf, pci_dbdf, 20);
-	relay->id = virtio_id;
 	find_vf2virtio_cpu(relay);
 	relay->dpdk.state = dpdk_state;
 	relay->dpdk.is_bond = is_bond;
@@ -1591,6 +1591,7 @@ int virtio_forwarders_initialize(const struct virtio_vhostuser_conf *conf)
 				log_warning("virtio %u has no specified CPU, NUMA memory allocation may be non-optimal on this multi-socket platform!", w);
 #endif
 		}
+		virtio_vf_relays[w].id = w;
 		virtio_vf_relays[w].dpdk.is_bond = false;
 		virtio_vf_relays[w].dpdk.num_slaves = 0;
 		virtio_vf_relays[w].vio.mempool_socket_id = socket_id;
@@ -1739,7 +1740,6 @@ int virtio_forwarder_add_virtio(void *virtionet, unsigned id)
 
 	log_debug("Adding relay for virtio id '%u' on CPU %u", id,
 		relay->vio.vio2vf_cpu);
-	relay->id = id;
 	relay->vio.tx_q_rr = 0;
 	relay->vio.vio_dev = virtionet;
 #if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
@@ -1763,14 +1763,16 @@ int virtio_forwarder_add_virtio(void *virtionet, unsigned id)
 		struct rte_mempool *mpool;
 		mpool = alloc_mempool(relay->id, newnode, NUM_PKTMBUF_POOL-1);
 		if (!mpool) {
-			log_warning("Could not alloc mempool for virtio %u on socket %d! Trying arbitrary socket...",
-				relay->id, newnode);
+			log_warning("Could not alloc mempool for virtio %u on socket %d! rte_errno = %d (%s). Trying arbitrary socket...",
+				relay->id, newnode, rte_errno,
+				rte_strerror(rte_errno));
 			newnode = SOCKET_ID_ANY;
 			mpool = alloc_mempool(relay->id, newnode,
 					NUM_PKTMBUF_POOL-1);
 			if (!mpool) {
-				log_error("Could not alloc mempool for virtio %u!",
-					relay->id);
+				log_error("Could not alloc mempool for virtio %u! rte_errno = %d (%s)",
+					relay->id, rte_errno,
+					rte_strerror(rte_errno));
 				return -1;
 			} else {
 				log_info("Mempool allocation succeeded on suboptimal socket");
