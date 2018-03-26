@@ -1763,13 +1763,21 @@ int virtio_forwarder_add_virtio(void *virtionet, unsigned id)
 		struct rte_mempool *mpool;
 		mpool = alloc_mempool(relay->id, newnode, NUM_PKTMBUF_POOL-1);
 		if (!mpool) {
-			log_error("Could not alloc mempool for virtio %u on socket %d!",
+			log_warning("Could not alloc mempool for virtio %u on socket %d! Trying arbitrary socket...",
 				relay->id, newnode);
-			return -1;
-		} else {
-			relay->vio.mempool = mpool;
-			relay->vio.mempool_socket_id = newnode;
+			newnode = SOCKET_ID_ANY;
+			mpool = alloc_mempool(relay->id, newnode,
+					NUM_PKTMBUF_POOL-1);
+			if (!mpool) {
+				log_error("Could not alloc mempool for virtio %u!",
+					relay->id);
+				return -1;
+			} else {
+				log_info("Mempool allocation succeeded on suboptimal socket");
+			}
 		}
+		relay->vio.mempool = mpool;
+		relay->vio.mempool_socket_id = newnode;
 	} else if (relay->vio.mempool_socket_id != newnode &&
 			newnode != SOCKET_ID_ANY) {
 		unsigned n;
