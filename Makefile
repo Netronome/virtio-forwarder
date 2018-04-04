@@ -271,5 +271,5 @@ doc: prepare_docs
 
 manual: prepare_docs
 	cd _build; \
-	env -i $(MAKE) man; \
+	env -i PATH=$$PATH $(MAKE) man; \
 	cp _build/man/$(APP).8 .
