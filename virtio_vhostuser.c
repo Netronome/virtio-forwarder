@@ -674,3 +674,89 @@ void virtio_vhostuser_stop(void) {
 	virtio_forwarders_shutdown();
 	log_debug("Stopped vhostuser thread");
 }
+
+/* API for dynamic socket operations. */
+int virtio_add_sock_dev_pair(const char *vhost_path,
+			char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
+			unsigned num_slaves, char *name, uint8_t mode,
+			bool conditional)
+{
+	int err;
+	int relay_id;
+	char *dev;
+
+	relay_id = virtio_get_free_relay_id(relay_ifname_map);
+	if (relay_id < 0) {
+		log_error("Could not get idle relay for packet processing!");
+		return 1;
+	}
+
+	/* Register VF or bond. */
+	if (num_slaves == 1) {
+		dev = slave_dbdfs[0];
+		err = virtio_forwarder_add_vf2(dev, relay_id, conditional);
+		if (err != 0) {
+			log_error("virtio_forwarder_add_vf2(%s, %d, %s) failed with error %d",
+				dev, relay_id, conditional ? "true" : "false",
+				err);
+			return 2;
+		}
+	} else {
+		err = virtio_forwarder_bond_add(slave_dbdfs, num_slaves, name,
+						mode, relay_id);
+		if (err != 0) {
+			log_error("virtio_forwarder_bond_add(<PCI addresses>, %u, %s, %u, %d) failed with error %d",
+				num_slaves, name, mode, relay_id, err);
+			return 3;
+		}
+	}
+
+	/* Register socket. */
+	err = register_relay_socket(vhost_path, relay_id);
+	if (err != 0) {
+		log_error("register_relay_socket failed with error %d", err);
+		return 4;
+	}
+
+	return err;
+}
+
+int virtio_remove_sock_dev_pair(const char *vhost_path, const char *dev,
+			bool conditional)
+{
+	int err;
+	int relay_id;
+
+	log_debug("Got virtio_remove_sock_dev_pair(%s, %s, %s)", vhost_path,
+		dev, conditional ? "true" : "false");
+
+	relay_id = get_relay_for_sock(vhost_path);
+	if (relay_id < 0) {
+		log_error("Could not get relay id for vhostuser fd %s!",
+			vhost_path);
+		return 1;
+	}
+
+	/* Remove virtio: VM may or may not have shutdown at this point.
+	 * Therefore, remove virtio manually to cater for case where the device
+	 * destroy callback did not trigger yet. */
+	virtio_forwarder_remove_virtio(relay_id);
+
+	/* Deregister socket. */
+	err = deregister_socket(vhost_path);
+	if (err != 0) {
+		log_error("deregister_socket(%s) failed with error %d",
+			vhost_path, err);
+		return 2;
+	}
+
+	/* Remove VF. */
+	err = virtio_forwarder_remove_vf2(dev, relay_id, conditional);
+	if (err != 0) {
+		log_error("virtio_forwarder_remove_vf2(%s, %d, %s) failed with error %d",
+			dev, relay_id, conditional ? "true" : "false",  err);
+		return 3;
+	}
+
+	return err;
+}

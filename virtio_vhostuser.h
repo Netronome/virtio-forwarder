@@ -37,6 +37,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <rte_eal.h>
+#include <rte_ethdev.h>
 
 #if RTE_MAX_ETHPORTS < 60
 #warning RTE_MAX_ETHPORTS in DPDK does not support sufficient VFs!
@@ -44,6 +45,8 @@
 #else
 #define MAX_RELAYS 60
 #endif
+
+#define MAX_NUM_BOND_SLAVES 8
 
 
 struct relay_cpus {
@@ -78,5 +81,12 @@ int virtio_vhostuser_start(const struct virtio_vhostuser_conf *conf,
 			bool create_sockets);
 
 void virtio_vhostuser_stop(void);
+
+int virtio_add_sock_dev_pair(const char *vhost_path,
+			char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
+			unsigned num_slaves, char *name, uint8_t mode,
+			bool conditional);
+int virtio_remove_sock_dev_pair(const char *vhost_path, const char *dev,
+			bool conditional);
 
 #endif // _VIRTIO_VHOSTUSER_THREAD

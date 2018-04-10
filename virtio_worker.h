@@ -43,8 +43,6 @@
 
 #include <rte_ethdev.h>
 
-#define MAX_NUM_BOND_SLAVES 8
-
 extern struct virtio_vhostuser_conf g_vio_worker_conf;
 
 int virtio_forwarders_initialize(void);
@@ -205,6 +203,6 @@ void reset_all_rate_stats(unsigned delay_ms);
 /**
  * @brief Get index of the first idle relay.
  */
-int virtio_get_free_relay_id(void);
+int virtio_get_free_relay_id(char **socket_map);
 
 #endif // _VIRTIO_WORKER_THREAD

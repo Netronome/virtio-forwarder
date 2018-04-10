@@ -38,6 +38,8 @@ message PortControlRequest {
     enum Op {
         ADD = 0;
         REMOVE = 1;
+        ADD_SOCK = 2;
+        REMOVE_SOCK = 3;
     }
 
     required Op op = 1;
@@ -54,7 +56,7 @@ message PortControlRequest {
     repeated PciAddress pci_addrs = 2;
 
     // virtio instance to add the VF[s] to.
-    required uint32 virtio_id = 3;
+    optional uint32 virtio_id = 3;
 
     // True to ignore requests that wouldn't change the relay state, rather
     // than treating them as errors.
@@ -63,6 +65,9 @@ message PortControlRequest {
     // If adding a bond, its name and mode
     optional string name = 5;
     optional uint32 mode = 6;
+
+    // If adding a socket-device pair, the vhostuser socket path
+    optional string vhost_path = 7;
 }
 
 // Response to PortControlRequest.

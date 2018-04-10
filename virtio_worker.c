@@ -673,7 +673,8 @@ int virtio_forwarder_add_vf(const char *pci_dbdf, unsigned virtio_id)
 	return virtio_forwarder_add_vf2(pci_dbdf, virtio_id, false);
 }
 
-static void format_slave_dbdfs(char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
+static void
+format_slave_dbdfs(char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
 			unsigned num_slaves, char *p)
 {
 	size_t idx = 0;
@@ -2172,14 +2173,15 @@ uint64_t get_eal_core_map(void)
 	return worker_core_bitmap;
 }
 
-int virtio_get_free_relay_id(void)
+int virtio_get_free_relay_id(char **socket_map)
 {
 	vio_vf_relay_t *relay;
 
 	for (unsigned id=0; id<MAX_RELAYS; ++id) {
 		relay = &virtio_vf_relays[id];
 		if (relay->vio.state == VIRTIO_UNINIT &&
-				relay->dpdk.state == DPDK_UNINIT)
+				relay->dpdk.state == DPDK_UNINIT &&
+				socket_map[id] == NULL)
 			return (int)id;
 	}
 

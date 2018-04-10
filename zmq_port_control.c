@@ -43,6 +43,7 @@
 #include "log.h"
 #include "sriov.h"
 #include "virtio_worker.h"
+#include "virtio_vhostuser.h"
 #include "zmq_service.h"
 #ifdef RTE_LIBRTE_PMD_BOND
 #include <rte_eth_bond.h>
@@ -53,6 +54,7 @@ struct port_control_req_buffer {
 	unsigned virtio_id;
 	char *name;
 	uint8_t mode;
+	char *vhost_path;
 };
 
 /** Converts PortControlRequest.Op to string. */
@@ -129,7 +131,7 @@ validate_PortControlRequest(Virtioforwarder__PortControlRequest const *pc)
 	}
 	if (pc->op == VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__REMOVE &&
 			pc->name == NULL && pc->n_pci_addrs > 1) {
-		log_warning("Cannot specify multiple PCI addresses for VF removeal. Provide name to remove a bond.");
+		log_warning("Cannot specify multiple PCI addresses for VF removal. Provide name to remove a bond.");
 		return false;
 
 	}
@@ -163,28 +165,62 @@ handle_PortControlRequest_set_error_code(
 	}
 }
 
-static void port_control_handle_add(Virtioforwarder__PortControlResponse *response,
+static void
+port_control_handle_add_socket(Virtioforwarder__PortControlResponse *response,
+			struct port_control_req_buffer *cfg,
+			unsigned num_devices, bool conditional)
+{
+	handle_PortControlRequest_set_error_code(
+		response, "virtio_add_sock_dev_pair()",
+		virtio_add_sock_dev_pair(
+			cfg->vhost_path, cfg->dbdf_addrs, num_devices,
+			cfg->name, cfg->mode, conditional
+		)
+	);
+}
+
+static void
+port_control_handle_remove_socket(Virtioforwarder__PortControlResponse *response,
+			struct port_control_req_buffer *cfg, char *name,
+			bool conditional)
+{
+	handle_PortControlRequest_set_error_code(
+		response, "virtio_remove_sock_dev_pair()",
+		virtio_remove_sock_dev_pair(
+			cfg->vhost_path,
+			name == NULL ? cfg->dbdf_addrs[0] : name, conditional
+		)
+	);
+}
+
+static void
+port_control_handle_add(Virtioforwarder__PortControlResponse *response,
 			struct port_control_req_buffer *cfg,
 			unsigned num_devices, bool conditional)
 {
 	if (num_devices == 1) {
 		handle_PortControlRequest_set_error_code(
 			response, "virtio_forwarder_add_vf2()",
-			virtio_forwarder_add_vf2(cfg->dbdf_addrs[0],
-			cfg->virtio_id, conditional)
+			virtio_forwarder_add_vf2(
+				cfg->dbdf_addrs[0],
+				cfg->virtio_id, conditional
+			)
 		);
 	} else if (num_devices > 1) {
 		handle_PortControlRequest_set_error_code(
 			response, "virtio_forwarder_bond_add()",
-			virtio_forwarder_bond_add(cfg->dbdf_addrs, num_devices,
-					cfg->name, cfg->mode, cfg->virtio_id)
+			virtio_forwarder_bond_add(
+				cfg->dbdf_addrs, num_devices, cfg->name,
+				cfg->mode, cfg->virtio_id
+			)
 		);
 	} else {
 		log_warning("Invalid number of VFs specified in port add request (%u).", num_devices);
 	}
 }
 
-static void port_control_handle_remove(Virtioforwarder__PortControlResponse *response,
+static void
+port_control_handle_remove(Virtioforwarder__PortControlResponse *response,
 			struct port_control_req_buffer *cfg, char *name,
 			bool conditional)
 {
@@ -192,14 +228,15 @@ static void port_control_handle_remove(Virtioforwarder__PortControlResponse *res
 		handle_PortControlRequest_set_error_code(
 			response, "virtio_forwarder_remove_vf2()",
 			virtio_forwarder_remove_vf2(
-				name, cfg->virtio_id, conditional)
-			);
+				name, cfg->virtio_id, conditional
+			)
+		);
 	} else {
 		handle_PortControlRequest_set_error_code(
 			response, "virtio_forwarder_remove_vf2()",
 			virtio_forwarder_remove_vf2(
-				cfg->dbdf_addrs[0], cfg->virtio_id,
-				conditional)
+				cfg->dbdf_addrs[0], cfg->virtio_id, conditional
+			)
 		);
 	}
 }
@@ -240,7 +277,10 @@ handle_PortControlRequest(
 				pc->pci_addrs[i], b.dbdf_addrs[i],
 				RTE_ETH_NAME_MAX_LEN
 			);
-		b.virtio_id = pc->virtio_id;
+		if (pc->has_virtio_id &&
+				pc->op != VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__ADD_SOCK &&
+				pc->op != VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__REMOVE_SOCK)
+			b.virtio_id = pc->virtio_id;
 		if (pc->name != NULL) {
 			b.name = pc->name;
 			if (pc->has_mode)
@@ -250,6 +290,8 @@ handle_PortControlRequest(
 				b.mode = BONDING_MODE_ACTIVE_BACKUP;
 #endif
 		}
+		if (pc->vhost_path != NULL)
+			b.vhost_path = pc->vhost_path;
 
 		bool conditional;
 		if (pc->has_conditional) {
@@ -267,6 +309,17 @@ handle_PortControlRequest(
 
 		case VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__REMOVE:
 			port_control_handle_remove(&response, &b,
+						pc->n_pci_addrs == 1 ? NULL :
+						pc->name, conditional);
+			break;
+
+		case VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__ADD_SOCK:
+			port_control_handle_add_socket(&response, &b,
+						pc->n_pci_addrs, conditional);
+			break;
+
+		case VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__REMOVE_SOCK:
+			port_control_handle_remove_socket(&response, &b,
 						pc->n_pci_addrs == 1 ? NULL :
 						pc->name, conditional);
 			break;
