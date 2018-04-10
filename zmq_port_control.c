@@ -121,19 +121,37 @@ Virtioforwarder__PortControlRequest__to_str(
 static bool
 validate_PortControlRequest(Virtioforwarder__PortControlRequest const *pc)
 {
-	if (pc->name != NULL && pc->n_pci_addrs < 2) {
-		log_warning("Bond port operations require multiple PCI devices.");
+	if (pc->name != NULL &&
+			(pc->op == VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__ADD ||
+			pc->op == VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__ADD_SOCK) &&
+			pc->n_pci_addrs < 2) {
+		log_error("Bond add operations require multiple PCI devices.");
 		return false;
 	}
 	if (pc->name == NULL && pc->n_pci_addrs > 1) {
-		log_warning("Bond port operations require an interface name.");
+		log_error("Bond port operations require an interface name.");
 		return false;
 	}
-	if (pc->op == VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__REMOVE &&
+	if ((pc->op == VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__REMOVE ||
+			pc->op == VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__REMOVE_SOCK) &&
 			pc->name == NULL && pc->n_pci_addrs > 1) {
-		log_warning("Cannot specify multiple PCI addresses for VF removal. Provide name to remove a bond.");
+		log_error("Cannot specify multiple PCI addresses for VF removal. Provide name to remove a bond.");
 		return false;
-
+	}
+	if ((pc->op == VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__ADD ||
+			pc->op == VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__REMOVE) &&
+			!pc->has_virtio_id) {
+		log_error("Add and remove operations require a virtio id.");
+		return false;
+	}
+	if (pc->op == VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__ADD_SOCK ||
+			pc->op == VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__REMOVE_SOCK) {
+		if (pc->vhost_path == NULL) {
+			log_error("The vhostuser socket path is required for socket add/remove operations.");
+			return false;
+		}
+		if (pc->has_virtio_id)
+			log_warning("The virtio id will be ignored for socket pair operations.");
 	}
 
 	/* Assuming that these are all unsigned. */

@@ -46,12 +46,16 @@ except ImportError:
 def _syntax():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        'op', metavar='OP', choices=('add', 'remove'),
+        'op', metavar='OP', choices=('add', 'remove', 'add_sock', 'remove_sock'),
         help='port control operation',
     )
     parser.add_argument(
-        'virtio_id', metavar='virtio-id', type=int,
-        help='virtio instance to connect to'
+        '--vhost-path', type=str,
+        help='Path to vhostuser socket. Use this option with the add/remove-sock operations'
+    )
+    parser.add_argument(
+        '--virtio-id', metavar='virtio-id', type=int,
+        help='virtio/relay instance to connect to'
     )
     parser.add_argument(
         '--crash-after-send', action='store_true',
@@ -70,8 +74,8 @@ def _syntax():
     )
     parser.add_argument('--zmq_ep', help='ZeroMQ port control endpoint')
     parser.add_argument(
-        '--conditional', type=bool,
-        help='whether to make a conditional request (default: unspecified)'
+        '--conditional', action='store_true',
+        help='whether to make a conditional request (default: False)'
     )
     parser.add_argument(
         '--send-garbage', action='store_true',
@@ -134,6 +138,8 @@ def main():
     if args.name is not None:
         msg.name = args.name
         msg.mode = args.mode
+    if args.vhost_path is not None:
+        msg.vhost_path = args.vhost_path
 
     if not args.send_garbage:
         socket.send(msg.SerializePartialToString())
