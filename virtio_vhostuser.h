@@ -35,6 +35,7 @@
 #define _VIRTIO_VHOSTUSER_THREAD
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <rte_eal.h>
 
 #if RTE_MAX_ETHPORTS < 60
@@ -73,7 +74,8 @@ struct virtio_vhostuser_conf {
     unsigned enable_tso:1;
 };
 
-int virtio_vhostuser_start(const struct virtio_vhostuser_conf *conf);
+int virtio_vhostuser_start(const struct virtio_vhostuser_conf *conf,
+			bool create_sockets);
 
 void virtio_vhostuser_stop(void);
 

@@ -102,6 +102,7 @@ static char zmq_port_control_ep[1024] = {'\0'};
 static char zmq_stats_ep[1024] = {'\0'};
 static char zmq_core_sched_ep[1024] = {'\0'};
 struct virtio_vhostuser_conf vhost_conf = { 0 };
+static bool create_vhostuser_sockets = true;
 
 static void sig_handler(int s)
 {
@@ -593,6 +594,18 @@ cmdline_enable_tso(void *opaque __attribute__((unused)),
 	return 0;
 }
 
+#if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
+static int
+cmdline_enable_dynamic_sockets(void *opaque __attribute__((unused)),
+			const char *arg __attribute__((unused)),
+			int opt_index __attribute__((unused)))
+{
+	create_vhostuser_sockets = false;
+
+	return 0;
+}
+#endif
+
 static int configure_signals(void)
 {
 	sigset_t sigset;
@@ -656,6 +669,9 @@ cmdline_opt_t opts[] = {
 	{ "zero-copy", '0', 0, cmdline_enable_zerocopy, 0, "Use experimental zero-copy support (VM to NIC) (default: disabled)" },
 #endif
 	{ "enable-tso", 'T', 0, cmdline_enable_tso, 0, "Enable TCP Segmentation Offload (increases hugepage memory requirement, default: disabled)" },
+#if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
+	{ "dynamic-sockets", 'd', 0, cmdline_enable_dynamic_sockets, 0, "Connect to sockets dynamically instead of creating the default sockets (default: disabled)" },
+#endif
 	{ "version", 'v', CMDLINE_PARAM_FLAG_TERMINATE, cmdline_show_version, 0, "Show version number and exit" },
 	{ 0, 0, 0, 0, 0, "\n\nVirtio-forwarder daemon: forward packets between SR-IOV VFs (serviced by DPDK) and VirtIO network backend.\n" }
 };
@@ -762,7 +778,7 @@ int main(int argc, char *argv[])
 		log_critical("Error with EAL initialization!");
 		exit(-1);
 	}
-	if (virtio_vhostuser_start(&vhost_conf) != 0) {
+	if (virtio_vhostuser_start(&vhost_conf, create_vhostuser_sockets) != 0) {
 		log_critical("Error with vhostuser initialization!");
 		exit(-1);
 	}

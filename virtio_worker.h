@@ -45,7 +45,9 @@
 
 #define MAX_NUM_BOND_SLAVES 8
 
-int virtio_forwarders_initialize(const struct virtio_vhostuser_conf *conf);
+extern struct virtio_vhostuser_conf g_vio_worker_conf;
+
+int virtio_forwarders_initialize(void);
 void virtio_forwarders_shutdown(void);
 
 #if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
@@ -199,5 +201,10 @@ virtio_forwarder_get_stats(unsigned virtio_id, struct virtio_worker_stats *stats
  * @param delay_ms Time in milliseconds to wait after resetting the counters.
  */
 void reset_all_rate_stats(unsigned delay_ms);
+
+/**
+ * @brief Get index of the first idle relay.
+ */
+int virtio_get_free_relay_id(void);
 
 #endif // _VIRTIO_WORKER_THREAD

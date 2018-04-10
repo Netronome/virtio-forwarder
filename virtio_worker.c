@@ -207,7 +207,6 @@ typedef struct {
 
 static worker_thread_t worker_threads[MAX_CPUS];
 static uint64_t worker_core_bitmap;
-static struct virtio_vhostuser_conf vio_worker_conf;
 static vio_vf_relay_t virtio_vf_relays[MAX_RELAYS];
 static relay_prev_counters_t relay_prev_counters[MAX_RELAYS];
 
@@ -273,7 +272,7 @@ static int naive_get_idlest_worker(int node)
 static void find_vf2virtio_cpu(vio_vf_relay_t *relay)
 {
 	int idlest_cpu;
-	int conf_cpu = vio_worker_conf.relay_cpus[relay->id].vf2vio_cpu;
+	int conf_cpu = g_vio_worker_conf.relay_cpus[relay->id].vf2vio_cpu;
 
 	if (conf_cpu != -1) {
 		relay->dpdk.vf2vio_cpu = conf_cpu;
@@ -408,8 +407,8 @@ static struct rte_mempool *alloc_mempool(unsigned virtio_id, int socket_id,
 		snprintf(buf, 32, "mempoolx_%u", virtio_id);
 
 	return rte_pktmbuf_pool_create(buf, n, 32-1, 0,
-					(vio_worker_conf.use_jumbo ||
-					vio_worker_conf.enable_tso) ?
+					(g_vio_worker_conf.use_jumbo ||
+					g_vio_worker_conf.enable_tso) ?
 					JUMBO_MBUF_SIZE : DEFAULT_MBUF_SIZE,
 					socket_id);
 }
@@ -1539,7 +1538,7 @@ static int worker_func(void *arg __attribute__((unused)))
 
 static void *init_static_vfs(void *ptr __attribute__((unused)))
 {
-	const struct virtio_vhostuser_conf *conf = &vio_worker_conf;
+	const struct virtio_vhostuser_conf *conf = &g_vio_worker_conf;
 
 	for (unsigned w=0; w<conf->static_relay_conf.num_static_entries; ++w) {
 		const char *dbdf = conf->static_relay_conf.static_relays[w].pci_dbdf;
@@ -1551,14 +1550,14 @@ static void *init_static_vfs(void *ptr __attribute__((unused)))
 	return NULL;
 }
 
-int virtio_forwarders_initialize(const struct virtio_vhostuser_conf *conf)
+int virtio_forwarders_initialize(void)
 {
 	int cpu;
 	unsigned w;
 	cpuinfo_t *c = get_cpuinfo();
 	pthread_t static_vfs_init;
+	const struct virtio_vhostuser_conf *conf = &g_vio_worker_conf;
 
-	vio_worker_conf = *conf;
 	memset(virtio_vf_relays, 0, sizeof(*virtio_vf_relays));
 
 	/* Issue NUMA mismatch warnings. */
@@ -1673,7 +1672,7 @@ void virtio_forwarders_shutdown(void)
 static void find_virtio2vf_cpu(vio_vf_relay_t *relay)
 {
 	int idlest_cpu;
-	int conf_cpu = vio_worker_conf.relay_cpus[relay->id].vio2vf_cpu;
+	int conf_cpu = g_vio_worker_conf.relay_cpus[relay->id].vio2vf_cpu;
 
 	if (conf_cpu != -1) {
 		relay->vio.vio2vf_cpu = conf_cpu;
@@ -2171,4 +2170,18 @@ virtio_forwarder_get_stats(unsigned virtio_id, struct virtio_worker_stats *stats
 uint64_t get_eal_core_map(void)
 {
 	return worker_core_bitmap;
+}
+
+int virtio_get_free_relay_id(void)
+{
+	vio_vf_relay_t *relay;
+
+	for (unsigned id=0; id<MAX_RELAYS; ++id) {
+		relay = &virtio_vf_relays[id];
+		if (relay->vio.state == VIRTIO_UNINIT &&
+				relay->dpdk.state == DPDK_UNINIT)
+			return (int)id;
+	}
+
+	return -1;
 }
