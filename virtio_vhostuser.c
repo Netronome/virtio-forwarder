@@ -684,22 +684,43 @@ int virtio_add_sock_dev_pair(const char *vhost_path,
 	int err;
 	int relay_id;
 	char *dev;
+#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+	dpdk_port_t port_id;
+#endif
+
+	dev = num_slaves == 1 ? slave_dbdfs[0] : name;
+#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+	if (rte_eth_dev_get_port_by_name(dev, &port_id) == 0) {
+		log_error("Device %s is already attached to virtio-forwarder",
+			dev);
+		return -EEXIST;
+	}
+#endif
+
+	for (int i=0; i<MAX_RELAYS; ++i) {
+		if (relay_ifname_map[i]) {
+			if (strcmp(relay_ifname_map[i], vhost_path) == 0) {
+				log_error("Socket %s is already registered with relay %d",
+					vhost_path, i);
+				return 1;
+			}
+		}
+	}
 
 	relay_id = virtio_get_free_relay_id(relay_ifname_map);
 	if (relay_id < 0) {
 		log_error("Could not get idle relay for packet processing!");
-		return 1;
+		return 2;
 	}
 
 	/* Register VF or bond. */
 	if (num_slaves == 1) {
-		dev = slave_dbdfs[0];
 		err = virtio_forwarder_add_vf2(dev, relay_id, conditional);
 		if (err != 0) {
 			log_error("virtio_forwarder_add_vf2(%s, %d, %s) failed with error %d",
 				dev, relay_id, conditional ? "true" : "false",
 				err);
-			return 2;
+			return 3;
 		}
 	} else {
 		err = virtio_forwarder_bond_add(slave_dbdfs, num_slaves, name,
@@ -707,7 +728,7 @@ int virtio_add_sock_dev_pair(const char *vhost_path,
 		if (err != 0) {
 			log_error("virtio_forwarder_bond_add(<PCI addresses>, %u, %s, %u, %d) failed with error %d",
 				num_slaves, name, mode, relay_id, err);
-			return 3;
+			return 4;
 		}
 	}
 
@@ -715,10 +736,23 @@ int virtio_add_sock_dev_pair(const char *vhost_path,
 	err = register_relay_socket(vhost_path, relay_id);
 	if (err != 0) {
 		log_error("register_relay_socket failed with error %d", err);
-		return 4;
+		goto exit_deconfigure_pair;
 	}
 
 	return err;
+
+exit_deconfigure_pair:
+	err = virtio_forwarder_remove_vf2(dev, relay_id, conditional);
+	if (err)
+		log_warning("During error recovery, virtio_forwarder_remove_vf2 failed with error %d",
+			err);
+
+	err = deregister_socket(vhost_path);
+	if (err)
+		log_warning("During error recovery, deregister_socket failed with error %d",
+			err);
+
+	return 5;
 }
 
 int virtio_remove_sock_dev_pair(const char *vhost_path, const char *dev,
@@ -737,6 +771,13 @@ int virtio_remove_sock_dev_pair(const char *vhost_path, const char *dev,
 		return 1;
 	}
 
+	/* Check that the device <-> relay pairing is correct. */
+	if (!virtio_relay_has_device(relay_id, dev)) {
+		log_error("The relay instance for socket %s has no device named %s. Not removing pair",
+			vhost_path, dev);
+		return 2;
+	}
+
 	/* Remove virtio: VM may or may not have shutdown at this point.
 	 * Therefore, remove virtio manually to cater for case where the device
 	 * destroy callback did not trigger yet. */
@@ -747,7 +788,7 @@ int virtio_remove_sock_dev_pair(const char *vhost_path, const char *dev,
 	if (err != 0) {
 		log_error("deregister_socket(%s) failed with error %d",
 			vhost_path, err);
-		return 2;
+		return 3;
 	}
 
 	/* Remove VF. */
@@ -755,7 +796,7 @@ int virtio_remove_sock_dev_pair(const char *vhost_path, const char *dev,
 	if (err != 0) {
 		log_error("virtio_forwarder_remove_vf2(%s, %d, %s) failed with error %d",
 			dev, relay_id, conditional ? "true" : "false",  err);
-		return 3;
+		return 4;
 	}
 
 	return err;

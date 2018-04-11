@@ -85,12 +85,6 @@
 /*
  * Type declarations
  */
-#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
-typedef uint16_t dpdk_port_t;
-#else
-typedef uint8_t dpdk_port_t;
-#endif
-
 #if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
 enum {VIRTIO_RXQ, VIRTIO_TXQ, VIRTIO_QNUM};
 #endif
@@ -2186,4 +2180,19 @@ int virtio_get_free_relay_id(char **socket_map)
 	}
 
 	return -1;
+}
+
+bool virtio_relay_has_device(unsigned id, const char *dev)
+{
+
+	vio_vf_relay_t *relay;
+
+	if (id >= MAX_RELAYS) {
+		log_error("Tried to query '%s' from invalid virtio ID %u!",
+			dev, id);
+		return false;
+	}
+	relay = &virtio_vf_relays[id];
+
+	return pci_dbdf_equal(dev, relay->dpdk.pci_dbdf);
 }

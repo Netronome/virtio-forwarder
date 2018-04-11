@@ -43,6 +43,13 @@
 
 #include <rte_ethdev.h>
 
+/* Shared compat definitions. */
+#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
+typedef uint16_t dpdk_port_t;
+#else
+typedef uint8_t dpdk_port_t;
+#endif
+
 extern struct virtio_vhostuser_conf g_vio_worker_conf;
 
 int virtio_forwarders_initialize(void);
@@ -204,5 +211,10 @@ void reset_all_rate_stats(unsigned delay_ms);
  * @brief Get index of the first idle relay.
  */
 int virtio_get_free_relay_id(char **socket_map);
+
+/**
+ * @brief Check whether relay has the given device assigned.
+ */
+bool virtio_relay_has_device(unsigned id, const char *dev);
 
 #endif // _VIRTIO_WORKER_THREAD
