@@ -204,19 +204,80 @@ following table lists a subset of the available options and their use:
 	      specifying which CPU(s) to use for the specified relay instances.
 	  - <vf>:<cpu>[,<cpu>]
 	  - None
+	* - | VIRTIOFWD_DYNAMIC_SOCKETS
+	    | Enable dynamic sockets. virtio-forwarder will not create or listen
+	      to any sockets when dynamic sockets are enabled. Instead, socket
+	      registration/deregistration must ensue through the ZMQ port control
+	      client.
+	  - true or false
+	  - false
 
 Adding VF Ports to Virtio-forwarder
 ===================================
-virtio-forwarder implements different methods for the addition and removal of VFs.
-Depending on the use case, one of the following may be appropriate:
+virtio-forwarder implements different methods for the addition and removal of
+VFs and bonds. Depending on the use case, one of the following may be
+appropriate:
 
-* **ZeroMQ port control** for the purpose of manual VF management at run-time. Run
-  ``/usr/libexec/virtio-forwarder/virtioforwarder_port_control_tester.py -h``
+* **ZeroMQ port control** for the purpose of manual device and socket management
+  at run-time. Run ``/usr/libexec/virtio-forwarder/virtioforwarder_port_control_tester.py -h``
   for usage guidelines. To enable ZeroMQ VF management, set
-  VIRTIOFWD_ZMQ_PORT_CONTROL_EP to an appropriate path in the configuration
+  ``VIRTIOFWD_ZMQ_PORT_CONTROL_EP`` to an appropriate path in the configuration
   file.
+
+  The port control client is the preferred device management tool, and is the
+  only utility that can exercise all the device related features of
+  virtio-forwarder. Particularly, bond creation/deletion, and dynamic socket
+  registration/deregistration are only exposed to the port control client.
+  The examples below demonstrate the different modes of operation:
+
+  - Add VF
+  	.. code:: bash
+
+  	  virtioforwarder_port_control_tester.py add --virtio-id=<ID> \
+  	  --pci-addr=<PCI_ADDR>
+
+  - Remove VF
+  	.. code:: bash
+
+  	  virtioforwarder_port_control_tester.py remove --virtio-id=<ID> \
+  	  --pci-addr=<PCI_ADDR>
+
+  - Add bond
+  	.. code:: bash
+
+  	  virtioforwarder_port_control_tester.py add --virtio-id=<ID> \
+  	  --name=<BOND_NAME> --pci-addr=<PCI_ADDR> --pci-addr=<PCI_ADDR> \
+  	  [--mode=<MODE>]
+
+  - Remove bond
+  	.. code:: bash
+
+  	  virtioforwarder_port_control_tester.py remove --virtio-id=<ID> \
+	  --name=<BOND_NAME>
+
+  - Add device <-> vhost-user socket pair
+  	.. code:: bash
+
+  	  virtioforwarder_port_control_tester.py add_sock \
+  	  --vhost-path=</path/to/vhostuser.sock> --pci-addr=<PCI_ADDR> \
+  	  [--pci-addr=<PCI_ADDR> --name=<BOND_NAME> [--mode=<MODE>]]
+
+  - Remove device <-> vhost-user socket pair
+  	.. code:: bash
+
+  	  virtioforwarder_port_control_tester.py remove_sock \
+  	  --vhost-path=</path/to/vhostuser.sock> \
+  	  (--pci-addr=<PCI_ADDR>|--name=<BOND_NAME>)
+
+  .. note::
+
+  	* A bond operation is assumed when multiple PCI addresses are provided.
+  	* Bond names are required to start with `net_bonding`.
+  	* Socket operations only apply if virtio-forwarder was started with the
+	  ``VIRTIOFWD_DYNAMIC_SOCKETS`` option enabled.
+
 * **Static VF entries** in /etc/default/virtioforwarder. VFs specified here are added
-  when the daemon starts. The VIRTIOFWD_STATIC_VFS variable is used for this
+  when the daemon starts. The ``VIRTIOFWD_STATIC_VFS`` variable is used for this
   purpose, with the syntax `<PCI>=<virtio_id>`, e.g. `0000:05:08.1=1`. Multiple
   entries can be specified using bash arrays. The following examples are all
   valid:
@@ -269,7 +330,7 @@ Depending on the use case, one of the following may be appropriate:
   		grep -A2 -E "external_ids.*: {.+}"
 
 * **Inter-process communication (IPC)** which implements a file monitor for VF
-  management. Set VIRTIOFWD_IPC_PORT_CONTROL in the configuration file to
+  management. Set ``VIRTIOFWD_IPC_PORT_CONTROL`` in the configuration file to
   non-null to enable.
 
 .. note::
@@ -286,10 +347,10 @@ Depending on the use case, one of the following may be appropriate:
 
 CPU Affinities
 ==============
-The VIRTIOFWD_CPU_PINS variable in the configuration file can be used to
+The ``VIRTIOFWD_CPU_PINS`` variable in the configuration file can be used to
 control VF relay CPU affinities. The format of the option is
 ``--virtio-cpu=<vf>:<cpu>[,<cpu>]``, where ``<cpu>`` must be a valid CPU enabled
-in the VIRTIOFWD_CPU_MASK configuration option. Specifying two CPUs for a
+in the ``VIRTIOFWD_CPU_MASK`` configuration option. Specifying two CPUs for a
 particular VF allows the VF-to-virtio and virtio-to-VF relay directions to be
 serviced by separate CPUs, enabling higher performance to a particular virtio
 endpoint in a VM. If a given VF is not bound to a CPU (or CPUs), then that VF
@@ -374,8 +435,8 @@ domain::
 
 	When starting the domain, make sure that the permissions are correctly
 	set on the relay vhost-user socket, as well as adding the required
-	permissions to the apparmor profile. The VIRTIOFWD_SOCKET_OWNER and
-	VIRTIOFWD_SOCKET_GROUP options in the configuration file can also be
+	permissions to the apparmor profile. The ``VIRTIOFWD_SOCKET_OWNER`` and
+	``VIRTIOFWD_SOCKET_GROUP`` options in the configuration file can also be
 	used to set the permissions on the vhostuser sockets.
 
 Using vhost-user Client Mode
