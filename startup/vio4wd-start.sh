@@ -88,5 +88,6 @@ fi
     ${VIRTIOFWD_VHOST_CLIENT:+--vhostuser-client} \
     ${VIRTIOFWD_ZERO_COPY:+--zero-copy} \
     ${VIRTIOFWD_TSO:+--enable-tso} \
+    ${VIRTIOFWD_DYNAMIC_SOCKETS:+--dynamic-sockets} \
     ${CPU_PINS_CMD_LINE} \
     ${STATIC_VFS_CMD_LINE}

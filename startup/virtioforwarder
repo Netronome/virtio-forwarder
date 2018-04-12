@@ -45,6 +45,13 @@ VIRTIOFWD_HUGETLBFS_MOUNT_POINT=/mnt/huge
 # VIRTIOFWD_STATIC_VFS=(0000:05:08.1=1)
 # VIRTIOFWD_STATIC_VFS=0000:05:08.1=1
 VIRTIOFWD_STATIC_VFS=
+
+# virtio-forwarder will not create or listen to any sockets when dynamic sockets
+# are enabled. Instead, socket registration/deregistration must be done through
+# the port control client. Dynamic sockets are geared towards Openstack port
+# plugging infrastructure.
+# Set to anything non-null to enable
+VIRTIOFWD_DYNAMIC_SOCKETS=
 #-------------------------------------------------------------------------------
 
 
