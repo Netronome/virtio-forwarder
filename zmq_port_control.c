@@ -154,10 +154,7 @@ validate_PortControlRequest(Virtioforwarder__PortControlRequest const *pc)
 			log_warning("The virtio id will be ignored for socket pair operations.");
 	}
 
-	/* Assuming that these are all unsigned. */
-	return pc->n_pci_addrs			> 0x0
-		&& pc->virtio_id		<= 0x7F
-	;
+	return true;
 }
 
 /** Sets detailed response status. */
