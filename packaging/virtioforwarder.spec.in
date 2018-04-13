@@ -32,7 +32,7 @@ env -i PATH=$PATH ${RTE_SDK:+RTE_SDK=$RTE_SDK} ${RTE_TARGET:+RTE_TARGET=$RTE_TAR
 
 %install
 rm -rf $RPM_BUILD_ROOT
-env -i PATH=$PATH ${RTE_SDK:+RTE_SDK=$RTE_SDK} ${RTE_TARGET:+RTE_TARGET=$RTE_TARGET} %{make_install} prefix=%{_prefix}
+env -i PATH=$PATH ${RTE_SDK:+RTE_SDK=$RTE_SDK} ${RTE_TARGET:+RTE_TARGET=$RTE_TARGET} ${CFLAGS:+CFLAGS="$CFLAGS"} ${V:+V="$V"} %{make_install} prefix=%{_prefix}
 
 %post
 systemctl daemon-reload

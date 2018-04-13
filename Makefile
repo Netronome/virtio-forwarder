@@ -223,7 +223,7 @@ deb: version
 	sed -ri "s/__UBUNTU_VER__/$$UBUNTU_VER/g" ./debian/changelog; \
 	sed -i "/^__DISTRO_MAP__/d" ./debian/changelog; \
 	sed -ri "s/__DATE__/$$DATE_STR/g" ./debian/changelog; \
-	debuild --rootcmd=fakeroot -e RTE_SDK -e RTE_TARGET -e PATH -us -uc
+	debuild --rootcmd=fakeroot -e RTE_SDK -e RTE_TARGET -e PATH -e CFLAGS -e V -us -uc
 
 rpm: version
 	mkdir -p rpmbuild/BUILD
