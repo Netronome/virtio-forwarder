@@ -346,20 +346,25 @@ conditional_add_ok(vio_vf_relay_t *relay, const char *pci_dbdf,
 			&& pci_dbdf_equal(relay->dpdk.pci_dbdf, pci_dbdf);
 }
 
-static void build_tx_conf(struct rte_eth_txconf *tx_conf)
+static void get_tx_conf(const struct rte_eth_dev_info *dev_info,
+			struct rte_eth_txconf *tx_conf)
 {
-	memset(tx_conf, 0, sizeof(struct rte_eth_txconf));
-	tx_conf->tx_free_thresh = 16;
-	tx_conf->txq_flags = ETH_TXQ_FLAGS_NOOFFLOADS |
-				ETH_TXQ_FLAGS_NOMULTMEMP |
-				ETH_TXQ_FLAGS_NOMULTSEGS;
+	*tx_conf = dev_info->default_txconf;
+#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
+	uint64_t desired_offloads;
+	desired_offloads = DEV_TX_OFFLOAD_IPV4_CKSUM |
+				DEV_TX_OFFLOAD_UDP_CKSUM |
+				DEV_TX_OFFLOAD_TCP_CKSUM |
+				DEV_TX_OFFLOAD_TCP_TSO;
+	tx_conf->offloads = dev_info->tx_offload_capa & desired_offloads;
+#endif
+	tx_conf->txq_flags &= ~ETH_TXQ_FLAGS_NOOFFLOADS;
 }
 
-static void build_rx_conf(struct rte_eth_rxconf *rx_conf)
+static void get_rx_conf(const struct rte_eth_dev_info *dev_info,
+			struct rte_eth_rxconf *rx_conf)
 {
-	memset(rx_conf, 0, sizeof(struct rte_eth_rxconf));
-	rx_conf->rx_drop_en = 1;
-	rx_conf->rx_free_thresh = 16;
+	*rx_conf = dev_info->default_rxconf;
 }
 
 static int cleanup_eth_dev(dpdk_port_t port_id)
@@ -450,11 +455,13 @@ migrate_mempool(vio_vf_relay_t *relay, int newnode, unsigned num_pktmbufs)
 		int err;
 		struct rte_eth_rxconf rx_conf;
 		struct rte_eth_txconf tx_conf;
+		struct rte_eth_dev_info dev_info;
 
 		log_info("Updating VF %s with the new NUMA configuration...",
 			relay->dpdk.pci_dbdf);
 		/* Reconfigure queues. */
-		build_tx_conf(&tx_conf);
+		rte_eth_dev_info_get(relay->dpdk.dpdk_port, &dev_info);
+		get_tx_conf(&dev_info, &tx_conf);
 		err = rte_eth_tx_queue_setup(port_id, 0, 1024,
 					relay->vio.mempool_socket_id, &tx_conf);
 		if (err != 0) {
@@ -463,7 +470,7 @@ migrate_mempool(vio_vf_relay_t *relay, int newnode, unsigned num_pktmbufs)
 			rte_eth_dev_close(port_id);
 			return -1;
 		}
-		build_rx_conf(&rx_conf);
+		get_rx_conf(&dev_info, &rx_conf);
 		err = rte_eth_rx_queue_setup(port_id, 0, 1024,
 					relay->vio.mempool_socket_id, &rx_conf,
 					relay->vio.mempool);
@@ -493,6 +500,7 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 	struct rte_eth_conf eth_conf = {0};
 	struct rte_eth_rxconf rx_conf;
 	struct rte_eth_txconf tx_conf;
+	struct rte_eth_dev_info dev_info;
 
 	log_info("Adding DPDK port %hhu ('%s') to virtio ('%u')",
 		port_id, name, virtio_id);
@@ -535,7 +543,8 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 	 * Per <http://dpdk.org/doc/api/rte__ethdev_8h.html>, we must setup the
 	 * TX queue before setting up the RX queue.
 	 */
-	build_tx_conf(&tx_conf);
+	rte_eth_dev_info_get(relay->dpdk.dpdk_port, &dev_info);
+	get_tx_conf(&dev_info, &tx_conf);
 	err = rte_eth_tx_queue_setup(port_id, 0, 1024,
 				relay->vio.mempool_socket_id, &tx_conf);
 	if (err != 0) {
@@ -544,7 +553,7 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 		return 6;
 	}
 
-	build_rx_conf(&rx_conf);
+	get_rx_conf(&dev_info, &rx_conf);
 	err = rte_eth_rx_queue_setup(port_id, 0, 1024,
 				relay->vio.mempool_socket_id, &rx_conf,
 				relay->vio.mempool);
