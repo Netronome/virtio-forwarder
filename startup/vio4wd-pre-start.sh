@@ -40,9 +40,9 @@ __LIBEXECDIR__/create_zmq_dir.py $VIRTIOFWD_ZMQ_CONFIG_EP
 
 # Set up the socket dir permissions.
 mkdir -vp "$VIRTIOFWD_SOCKET_DIR" || { stop; exit 1; }
-test -n "$VIRTIOFWD_SOCKET_OWNER" ||
+test -n "$VIRTIOFWD_SOCKET_OWNER" &&
     chown "$VIRTIOFWD_SOCKET_OWNER" "$VIRTIOFWD_SOCKET_DIR"
-test -n "$VIRTIOFWD_SOCKET_GROUP" ||
+test -n "$VIRTIOFWD_SOCKET_GROUP" &&
     chgrp "$VIRTIOFWD_SOCKET_GROUP" "$VIRTIOFWD_SOCKET_DIR"
 
 # Clean up any stray PID file that may be lying around.
