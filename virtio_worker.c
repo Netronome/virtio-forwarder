@@ -578,6 +578,8 @@ static int init_vf(const char *pci_dbdf, dpdk_port_t *port_id,
 		return err;
 	}
 
+	rte_eth_promiscuous_enable(*port_id);
+
 	return 0;
 }
 
