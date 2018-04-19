@@ -1218,6 +1218,7 @@ static void worker_remove_vf(vio_vf_relay_t *relay)
 	struct rte_mbuf **pkts;
 
 	log_debug("Removing VF from worker");
+	while (rte_spinlock_trylock(&relay->dpdk.sl));
 	if (relay->dpdk.rx_pkts_avail) {
 		log_debug("Freeing %u cached RX packets",
 			relay->dpdk.rx_pkts_avail);
@@ -1231,6 +1232,7 @@ static void worker_remove_vf(vio_vf_relay_t *relay)
 		relay->dpdk.rx_pkts_avail = 0;
 		relay->dpdk.rx_pkts_used = 0;
 	}
+	rte_spinlock_unlock(&relay->dpdk.sl);
 	if (relay->vio.tx_pkts_avail) {
 		log_debug("Freeing %u cached TX packets",
 			relay->vio.tx_pkts_avail);
@@ -1438,6 +1440,7 @@ static void worker_remove_virtio(vio_vf_relay_t *relay)
 		relay->dpdk.rx_pkts_avail = 0;
 		relay->dpdk.rx_pkts_used = 0;
 	}
+	while (rte_spinlock_trylock(&relay->vio.sl));
 	if (relay->vio.tx_pkts_avail) {
 		log_debug("Freeing %u cached TX packets",
 			relay->vio.tx_pkts_avail);
@@ -1451,6 +1454,7 @@ static void worker_remove_virtio(vio_vf_relay_t *relay)
 		relay->vio.tx_pkts_avail = 0;
 		relay->vio.tx_pkts_used = 0;
 	}
+	rte_spinlock_unlock(&relay->vio.sl);
 	relay->vio.state = VIRTIO_UNINIT; /* Signal main thread. */
 }
 
