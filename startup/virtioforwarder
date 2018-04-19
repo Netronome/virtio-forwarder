@@ -14,7 +14,7 @@ VIRTIOFWD_LOG_LEVEL=6
 
 # Use IPC to add/remove VF&virtio instead of OVSDB (default: use OVSDB)
 # Set to anything non-null to enable
-VIRTIOFWD_IPC_PORT_CONTROL=
+VIRTIOFWD_IPC_PORT_CONTROL=y
 
 # OVSDB unix domain socket file used for port control.
 # Blank defaults to /usr/local/var/run/openvswitch/db.sock
@@ -24,7 +24,7 @@ VIRTIOFWD_OVSDB_SOCK_PATH=
 # Set to anything non-null to enable
 VIRTIOFWD_JUMBO=y
 VIRTIOFWD_MRGBUF=y
-VIRTIOFWD_TSO=y
+VIRTIOFWD_TSO=
 
 # vhost-user unix socket ownership username (leave blank to inherit process
 # username)
@@ -36,7 +36,7 @@ VIRTIOFWD_SOCKET_GROUP=
 
 # Mount path to hugepages for vhost-user communication with VMs
 # IMPORTANT: This must match the path configured for libvirt/QEMU!
-VIRTIOFWD_HUGETLBFS_MOUNT_POINT=/mnt/huge
+VIRTIOFWD_HUGETLBFS_MOUNT_POINT=/dev/hugepages
 
 # Add static VFs, in the form <PCI>=<virtio_id>, e.g. 0000:05:08.1=1
 # Multiple instances can be specified using bash array format. The following
@@ -100,7 +100,7 @@ VIRTIOFWD_PID_DIR=/var/run
 VIRTIOFWD_ZMQ_CONFIG_EP=
 
 # ZeroMQ IPC endpoint used to add/remove SR-IOV VFs to the relay
-VIRTIOFWD_ZMQ_PORT_CONTROL_EP=
+VIRTIOFWD_ZMQ_PORT_CONTROL_EP=ipc:///var/run/virtio-forwarder/port_control
 
 # ZeroMQ IPC endpoint used to query relay stats
 VIRTIOFWD_ZMQ_STATS_EP=ipc:///var/run/virtio-forwarder/stats
@@ -122,7 +122,7 @@ VIRTIOFWD_BINARY=__BINDIR__/virtio-forwarder
 VIRTIOFWD_MASTER_LCORE=
 
 # Non-blank enables vhostuser client mode (default: server mode)
-VIRTIOFWD_VHOST_CLIENT=
+VIRTIOFWD_VHOST_CLIENT=y
 
 # Use experimental zero-copy support (VM to NIC) (default: disabled)
 VIRTIOFWD_ZERO_COPY=
