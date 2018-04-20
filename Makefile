@@ -168,7 +168,7 @@ vio_installdirs:
 	mkdir -p $(DESTDIR)$(bindir)
 	mkdir -p $(DESTDIR)$(libexecdir)
 	mkdir -p $(DESTDIR)/etc/default
-	mkdir -p $(DESTDIR)/etc/systemd/system
+	mkdir -p $(DESTDIR)/lib/systemd/system
 	mkdir -p $(DESTDIR)/etc/init
 	mkdir -p $(DESTDIR)$(mandir)
 
@@ -180,8 +180,8 @@ vio_install: vio_installdirs
 	find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)$(libexecdir)/$$(basename {})' \;
 	$(INSTALL_DATA) $(RTE_SRCDIR)/startup/virtioforwarder $(DESTDIR)/etc/default
 	sed -ri "s#__BINDIR__#$(bindir)#" $(DESTDIR)/etc/default/virtioforwarder
-	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec $(INSTALL_DATA) {} $(DESTDIR)/etc/systemd/system \;
-	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)/etc/systemd/system/$$(basename {})' \;
+	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec $(INSTALL_DATA) {} $(DESTDIR)/lib/systemd/system \;
+	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)/lib/systemd/system/$$(basename {})' \;
 	find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec $(INSTALL_DATA) {} $(DESTDIR)/etc/init \;
 	find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)/etc/init/$$(basename {})' \;
 	cd $(RTE_OUTPUT); \
@@ -192,7 +192,7 @@ vio_uninstall:
 	@find $(RTE_SRCDIR)/scripts/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.py' -exec sh -c 'rm -f $(DESTDIR)$(libexecdir)/$$(basename {})*' \;
 	@find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec sh -c 'rm -f $(DESTDIR)$(libexecdir)/$$(basename {})' \;
 	@rm -f $(DESTDIR)/etc/default/virtioforwarder
-	@find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'rm -f $(DESTDIR)/etc/systemd/system/$$(basename {})' \;
+	@find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'rm -f $(DESTDIR)/lib/systemd/system/$$(basename {})' \;
 	@find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'rm -f $(DESTDIR)/etc/init/$$(basename {})' \;
 	@rm -rf $(DESTDIR)$(libexecdir)/protobuf/
 

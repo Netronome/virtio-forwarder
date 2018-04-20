@@ -42,8 +42,8 @@ systemctl daemon-reload
 %{_prefix}/share/man/man8/virtio-forwarder.8.gz
 %{_prefix}/libexec/virtio-forwarder
 /etc/default/virtioforwarder
-/etc/systemd/system/virtio-forwarder.service
-/etc/systemd/system/vio4wd_core_scheduler.service
+/lib/systemd/system/virtio-forwarder.service
+/lib/systemd/system/vio4wd_core_scheduler.service
 /etc/init/virtio-forwarder.conf
 /etc/init/vio4wd_core_scheduler.conf
 
