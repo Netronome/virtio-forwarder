@@ -15,3 +15,6 @@ ExecStart=/bin/bash -c '__LIBEXECDIR__/core_scheduler.py \
     $${VIO4WD_CORE_SCHED_SENSITIVITY:+--sensitivity="$$VIO4WD_CORE_SCHED_SENSITIVITY"} \
     $${VIO4WD_CORE_SCHED_POLL_INTERVAL:+--poll-interval="$$VIO4WD_CORE_SCHED_POLL_INTERVAL"} \
     $${VIO4WD_CORE_SCHED_LOG_LEVEL:+--loglevel="$$VIO4WD_CORE_SCHED_LOG_LEVEL"}'
+
+[Install]
+WantedBy=multi-user.target
