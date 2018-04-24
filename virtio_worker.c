@@ -123,7 +123,7 @@ struct relay_virtio {
 	int vio2vf_cpu;
 	unsigned max_queue_pairs;
 	uint64_t rx_q_bitmap;
-	uint64_t tx_q_bitmap;
+	volatile uint64_t tx_q_bitmap;
 	unsigned rx_q_active;
 	uint8_t rx_q_lut[MAX_MULTIQUEUE_PAIRS];
 	unsigned tx_q_rr; /* round robin state of tx queue processing for multi-queue, 0 <= tx_q_rr < max_queue_pairs. */
