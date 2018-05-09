@@ -1038,7 +1038,7 @@ worker_vhost_enqueue_burst(struct virtio_net *dev, uint16_t q,
 				struct rte_mbuf **pkts, uint32_t count)
 {
 #endif
-	int retries=VIRTIO_RETRY_ENQUEUE;
+	int retries = VIRTIO_RETRY_ENQUEUE;
 	unsigned sent = 0;
 
 	do {
@@ -1046,8 +1046,9 @@ worker_vhost_enqueue_burst(struct virtio_net *dev, uint16_t q,
 		if (likely(tx)) {
 			sent += tx;
 			count -= tx;
-		} else
+		} else {
 			break;
+		}
 	} while (count && (retries-- > 0));
 
 	return sent;
@@ -1395,9 +1396,15 @@ static inline int virtio_tx(vio_vf_relay_t *relay)
 						cur_q*2, pkts+i-runlen, runlen);
 #endif
 	} else {
+#if defined(VIRTIO_RETRY_ENQUEUE)
+		sent += worker_vhost_enqueue_burst(relay->vio.vio_dev,
+						VIRTIO_RXQ, pkts,
+						relay->dpdk.rx_pkts_avail);
+#else
 		sent = rte_vhost_enqueue_burst(relay->vio.vio_dev,
 						VIRTIO_RXQ, pkts,
 						relay->dpdk.rx_pkts_avail);
+#endif
 	}
 	relay->dpdk.rx_pkts_avail -= sent;
 	relay->dpdk.rx_pkts_used += sent;
