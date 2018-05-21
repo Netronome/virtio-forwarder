@@ -1,0 +1,57 @@
+Name:           virtio-forwarder
+Version:        __VRELAY_TAG_VERSION__
+Release:        __VRELAY_BUILD_VERSION__%{?dist}
+Summary:        An SR-IOV virtual function to virtio packet forwarder
+
+License:        BSD
+URL:            http://netronome.com
+Source0:        virtio-forwarder-__VRELAY_TAG_VERSION__-__VRELAY_BUILD_VERSION__.tar.bz2
+Requires:       python-zmq, protobuf-python
+BuildRequires:  make gcc dpdk-devel
+BuildRequires:  protobuf-c-compiler protobuf-c-devel protobuf-compiler
+BuildRequires:  zeromq3-devel
+BuildRequires:  python python-sphinx python-sphinx_rtd_theme
+BuildRequires:  numactl-devel
+
+%description
+virtio-forwarder is a userspace networking application that forwards
+bi-directional traffic between SR-IOV virtual functions and virtio networking
+devices in QEMU virtual machines. virtio-forwarder implements a virtio backend
+driver using the DPDK’s vhost-user library and services designated VFs by means
+of the DPDK poll mode driver (PMD) mechanism.
+
+%prep
+%setup -q
+
+%build
+# We need to clean the variables that may have been set from a previous
+# invocation of make, e.g. if rpmbuild is called from a Makefile.
+env -i PATH=$PATH ${RTE_SDK:+RTE_SDK=$RTE_SDK} \
+	${RTE_TARGET:+RTE_TARGET=$RTE_TARGET} \
+	${CFLAGS:+CFLAGS="$CFLAGS"} ${V:+V="$V"} \
+	make
+
+%install
+rm -rf $RPM_BUILD_ROOT
+env -i PATH=$PATH ${RTE_SDK:+RTE_SDK=$RTE_SDK} \
+	${RTE_TARGET:+RTE_TARGET=$RTE_TARGET} \
+	${CFLAGS:+CFLAGS="$CFLAGS"} ${V:+V="$V"} \
+	%{make_install} prefix=%{_prefix} unitdir=%{_unitdir}
+
+%post
+systemctl daemon-reload
+
+%files
+%{_prefix}/bin/virtio-forwarder
+%{_prefix}/share/man/man8/virtio-forwarder.8.gz
+%{_prefix}/libexec/virtio-forwarder
+%config(noreplace) /etc/default/virtioforwarder
+%{_unitdir}/virtio-forwarder.service
+%{_unitdir}/vio4wd_core_scheduler.service
+%config /etc/init/virtio-forwarder.conf
+%config /etc/init/vio4wd_core_scheduler.conf
+
+%changelog
+* Mon May 21 2018 Frik Botha <frik.botha@netronome.com>
+- __VRELAY_TAG_VERSION__-__VRELAY_BUILD_VERSION__
+__CHANGELOG_CONTENTS__

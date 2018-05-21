@@ -48,6 +48,7 @@ prefix ?= /usr/local
 bindir = $(prefix)/bin
 libexecdir = $(prefix)/libexec/virtio-forwarder
 mandir = $(prefix)/share/man/man8
+unitdir ?= /usr/lib/systemd/system
 
 # binary name
 APP = virtio-forwarder
@@ -168,7 +169,7 @@ vio_installdirs:
 	mkdir -p $(DESTDIR)$(bindir)
 	mkdir -p $(DESTDIR)$(libexecdir)
 	mkdir -p $(DESTDIR)/etc/default
-	mkdir -p $(DESTDIR)/lib/systemd/system
+	mkdir -p $(DESTDIR)$(unitdir)
 	mkdir -p $(DESTDIR)/etc/init
 	mkdir -p $(DESTDIR)$(mandir)
 
@@ -180,19 +181,19 @@ vio_install: vio_installdirs
 	find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)$(libexecdir)/$$(basename {})' \;
 	$(INSTALL_DATA) $(RTE_SRCDIR)/startup/virtioforwarder $(DESTDIR)/etc/default
 	sed -ri "s#__BINDIR__#$(bindir)#" $(DESTDIR)/etc/default/virtioforwarder
-	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec $(INSTALL_DATA) {} $(DESTDIR)/lib/systemd/system \;
-	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)/lib/systemd/system/$$(basename {})' \;
+	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec $(INSTALL_DATA) {} $(DESTDIR)$(unitdir) \;
+	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)$(unitdir)/$$(basename {})' \;
 	find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec $(INSTALL_DATA) {} $(DESTDIR)/etc/init \;
 	find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)/etc/init/$$(basename {})' \;
 	cd $(RTE_OUTPUT); \
-	find ./protobuf/ -type f -regextype posix-extended -regex '.*\.py' -exec $(INSTALL_PROGRAM) -D {} $(DESTDIR)$(libexecdir)/{} \;
+	find ./protobuf/ -type f -regextype posix-extended -regex '.*\.py' -exec $(INSTALL_DATA) -D {} $(DESTDIR)$(libexecdir)/{} \;
 
 vio_uninstall:
 	@rm -f $(DESTDIR)$(bindir)/$(APP)
 	@find $(RTE_SRCDIR)/scripts/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.py' -exec sh -c 'rm -f $(DESTDIR)$(libexecdir)/$$(basename {})*' \;
 	@find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec sh -c 'rm -f $(DESTDIR)$(libexecdir)/$$(basename {})' \;
 	@rm -f $(DESTDIR)/etc/default/virtioforwarder
-	@find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'rm -f $(DESTDIR)/lib/systemd/system/$$(basename {})' \;
+	@find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'rm -f $(DESTDIR)$(unitdir)/$$(basename {})' \;
 	@find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'rm -f $(DESTDIR)/etc/init/$$(basename {})' \;
 	@rm -rf $(DESTDIR)$(libexecdir)/protobuf/
 
@@ -243,13 +244,16 @@ rpm: version
 	cd _build; \
 	VERSION_TAG_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/BUILD/&&!/SHASH/{count++; if (count<3) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
 	VERSION_BUILD_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&/BUILD/{print $$3}' vrelay_version.h)"; \
-	cp ../packaging/virtioforwarder.spec.in ../rpmbuild/SPECS/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING.spec; \
-	sed -ri "s/__VRELAY_TAG_VERSION__/$$VERSION_TAG_STRING/" ../rpmbuild/SPECS/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING.spec; \
-	sed -ri "s/__VRELAY_BUILD_VERSION__/$$VERSION_BUILD_STRING/" ../rpmbuild/SPECS/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING.spec; \
+	cp ../packaging/virtio-forwarder.spec.in ../rpmbuild/SPECS/virtio-forwarder.spec; \
+	sed -ri "s/__VRELAY_TAG_VERSION__/$$VERSION_TAG_STRING/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
+	sed -ri "s/__VRELAY_BUILD_VERSION__/$$VERSION_BUILD_STRING/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
+	sed -ri "s/__CHANGELOG_CONTENTS__/- $(shell git log --oneline -n1 HEAD)/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
+	DATE_STR="$(shell date +'%a %b %d %Y')"; \
+	sed -ri "s/__DATE__/$$DATE_STR/g" ../rpmbuild/SPECS/virtio-forwarder.spec; \
 	mv virtio-forwarder/ virtio-forwarder-$$VERSION_TAG_STRING; \
 	tar cfjp ../rpmbuild/SOURCES/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING.tar.bz2 virtio-forwarder-$$VERSION_TAG_STRING/; \
-	rpmbuild -$${RPMBUILD_FLAGS:-ba} -D "_topdir $(shell pwd)/rpmbuild/" ../rpmbuild/SPECS/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING.spec; \
-	if [ -z $${RPMBUILD_FLAGS:+x} ]; then cp ../rpmbuild/RPMS/x86_64/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING*.rpm $${RPM_OUTDIR:-.}; fi; \
+	rpmbuild -$${RPMBUILD_FLAGS:-ba} -D "_topdir $(shell pwd)/rpmbuild/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
+	if [ -z $${RPMBUILD_FLAGS:+x} ]; then cp ../rpmbuild/RPMS/x86_64/virtio-forwarder*-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING*.rpm $${RPM_OUTDIR:-.}; fi; \
 	cp ../rpmbuild/SRPMS/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING*src.rpm $${RPM_OUTDIR:-.}
 
 prepare_docs: version
