@@ -1,16 +1,20 @@
 Source: virtio-forwarder
 Maintainer: Frik Botha <frik.botha@netronome.com>
-Section: admin
+Section: net
 Build-Depends: debhelper (>= 9), python-minimal, protobuf-c-compiler, libprotobuf-c0-dev, libzmq3-dev, protobuf-compiler, python-sphinx, libnuma-dev, libdpdk-dev, dpdk-dev, libpcap-dev, libxen-dev, git
-Standards-Version: 3.9.5
+Standards-Version: 3.9.7
 Homepage: https://github.com/Netronome/virtio-forwarder
 Priority: optional
 
 Package: virtio-forwarder
-Section: admin
+Section: net
 Homepage: https://github.com/Netronome/virtio-forwarder
 Architecture: amd64
 Priority: optional
 Depends: ${misc:Depends}, ${shlibs:Depends}, python, python-zmq, python-protobuf
-Description: Virtio-forwarder
- An SR-IOV virtual function to virtio packet forwarder
+Description: SR-IOV virtual function to virtio packet forwarder
+ virtio-forwarder is a userspace networking application that forwards
+ bi-directional traffic between SR-IOV virtual functions and virtio networking
+ devices in QEMU virtual machines. virtio-forwarder implements a virtio backend
+ driver using the DPDK’s vhost-user library and services designated VFs by
+ means of the DPDK poll mode driver (PMD) mechanism.

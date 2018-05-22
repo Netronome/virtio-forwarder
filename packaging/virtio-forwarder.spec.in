@@ -1,7 +1,7 @@
 Name:           virtio-forwarder
 Version:        __VRELAY_TAG_VERSION__
 Release:        __VRELAY_BUILD_VERSION__%{?dist}
-Summary:        An SR-IOV virtual function to virtio packet forwarder
+Summary:        SR-IOV virtual function to virtio packet forwarder
 
 License:        BSD
 URL:            http://netronome.com

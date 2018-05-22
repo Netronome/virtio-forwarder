@@ -8,7 +8,8 @@
 	dh $@
 
 override_dh_auto_install:
-	$(MAKE) DESTDIR=$$(pwd)/debian/virtio-forwarder prefix=/usr install
+	$(MAKE) DESTDIR=$$(pwd)/debian/virtio-forwarder prefix=/usr \
+	unitdir=/lib/systemd/system install
 
 override_dh_auto_clean:
 	$(MAKE) DESTDIR=$$(pwd)/debian/virtio-forwarder clean
