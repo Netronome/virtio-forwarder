@@ -246,7 +246,7 @@ rpm: version
 	cp ../packaging/virtio-forwarder.spec.in ../rpmbuild/SPECS/virtio-forwarder.spec; \
 	sed -ri "s/__VRELAY_TAG_VERSION__/$$VERSION_TAG_STRING/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
 	sed -ri "s/__VRELAY_BUILD_VERSION__/$$VERSION_BUILD_STRING/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
-	sed -ri "s/__CHANGELOG_CONTENTS__/- $(shell git log --oneline -n1 HEAD)/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
+	sed -ri "s/__CHANGELOG_CONTENTS__/- $(shell git log --oneline -n1 HEAD | sed -e 's/[\/&]/\\&/g')/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
 	DATE_STR="$(shell date +'%a %b %d %Y')"; \
 	sed -ri "s/__DATE__/$$DATE_STR/g" ../rpmbuild/SPECS/virtio-forwarder.spec; \
 	mv virtio-forwarder/ virtio-forwarder-$$VERSION_TAG_STRING; \
