@@ -32,15 +32,19 @@
 
 import argparse
 import zmq
+import os
+import sys
 
-from protobuf.virtioforwarder import virtioforwarder_pb2 as relay
-
+try:
+    from protobuf.virtioforwarder import virtioforwarder_pb2 as relay
+except ImportError:
+    PWD = os.path.dirname(os.path.abspath(__file__))
+    sys.path.append(PWD + '/../build/protobuf/virtioforwarder')
+    import virtioforwarder_pb2 as relay
 
 def _syntax():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        'zmq_ep', metavar='ZMQ-EP', help='ZeroMQ endpoint',
-    )
+    parser.add_argument('--config-ep', help='ZeroMQ configuration endpoint')
     parser.add_argument(
         '--crash-after-send', action='store_true',
         help='crash after sending request'
@@ -55,12 +59,13 @@ def _syntax():
 def main():
     args = _syntax().parse_args()
 
+    config_ep = args.config_ep if args.config_ep else "ipc:///var/run/virtio-forwarder/config"
     context = zmq.Context()
     socket = context.socket(zmq.REQ)
     socket.setsockopt(zmq.LINGER, 0)
     socket.setsockopt(zmq.SNDTIMEO, 0)
     socket.setsockopt(zmq.RCVTIMEO, 2000)
-    socket.connect(args.zmq_ep)
+    socket.connect(config_ep)
 
     if not args.send_garbage:
         msg = relay.ConfigRequest()
