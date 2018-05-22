@@ -219,7 +219,7 @@ VFs and bonds. Depending on the use case, one of the following may be
 appropriate:
 
 * **ZeroMQ port control** for the purpose of manual device and socket management
-  at run-time. Run ``/usr/libexec/virtio-forwarder/virtioforwarder_port_control_tester.py -h``
+  at run-time. Run ``/usr/libexec/virtio-forwarder/virtioforwarder_port_control.py -h``
   for usage guidelines. To enable ZeroMQ VF management, set
   ``VIRTIOFWD_ZMQ_PORT_CONTROL_EP`` to an appropriate path in the configuration
   file.
@@ -233,39 +233,39 @@ appropriate:
   - Add VF
   	.. code:: bash
 
-  	  virtioforwarder_port_control_tester.py add --virtio-id=<ID> \
+  	  virtioforwarder_port_control.py add --virtio-id=<ID> \
   	  --pci-addr=<PCI_ADDR>
 
   - Remove VF
   	.. code:: bash
 
-  	  virtioforwarder_port_control_tester.py remove --virtio-id=<ID> \
+  	  virtioforwarder_port_control.py remove --virtio-id=<ID> \
   	  --pci-addr=<PCI_ADDR>
 
   - Add bond
   	.. code:: bash
 
-  	  virtioforwarder_port_control_tester.py add --virtio-id=<ID> \
+  	  virtioforwarder_port_control.py add --virtio-id=<ID> \
   	  --name=<BOND_NAME> --pci-addr=<PCI_ADDR> --pci-addr=<PCI_ADDR> \
   	  [--mode=<MODE>]
 
   - Remove bond
   	.. code:: bash
 
-  	  virtioforwarder_port_control_tester.py remove --virtio-id=<ID> \
+  	  virtioforwarder_port_control.py remove --virtio-id=<ID> \
 	  --name=<BOND_NAME>
 
   - Add device <-> vhost-user socket pair
   	.. code:: bash
 
-  	  virtioforwarder_port_control_tester.py add_sock \
+  	  virtioforwarder_port_control.py add_sock \
   	  --vhost-path=</path/to/vhostuser.sock> --pci-addr=<PCI_ADDR> \
   	  [--pci-addr=<PCI_ADDR> --name=<BOND_NAME> [--mode=<MODE>]]
 
   - Remove device <-> vhost-user socket pair
   	.. code:: bash
 
-  	  virtioforwarder_port_control_tester.py remove_sock \
+  	  virtioforwarder_port_control.py remove_sock \
   	  --vhost-path=</path/to/vhostuser.sock> \
   	  (--pci-addr=<PCI_ADDR>|--name=<BOND_NAME>)
 
@@ -527,14 +527,14 @@ Here are pointers to using some of the more useful ones:
 
 - virtioforwarder_stats.py: Gathers statistics (including rate stats) from running
   relay instances.
-- core_pinner.py: Manually pin relay instances to CPUs at runtime. Uses the same
-  syntax as the environment file, that is,
+- virtioforwarder_core_pinner.py: Manually pin relay instances to CPUs at
+  runtime. Uses the same syntax as the environment file, that is,
   --virtio-cpu=R\ :sub:`N`\ :C\ :sub:`i`\ ,C\ :sub:`j`\ . Run without
   arguments to get the current relay to CPU mapping. Note that the mappings may
   be overridden by the load balancer if it is also running. The same is true for
   mappings provided in the configuration file.
-- monitor_load.py: Provides a bar-like representation of the current load on
-  worker CPUs. Useful to monitor the work of the load balancer.
+- virtioforwarder_monitor_load.py: Provides a bar-like representation of the
+  current load on worker CPUs. Useful to monitor the work of the load balancer.
 
 System logs can be viewed by running
 ``journalctl -u virtio-forwarder -u vio4wd_core_scheduler`` on systemd-enabled
