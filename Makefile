@@ -183,8 +183,8 @@ vio_install: vio_installdirs
 	sed -ri "s#__BINDIR__#$(bindir)#" $(DESTDIR)/etc/default/virtioforwarder
 	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec $(INSTALL_DATA) {} $(DESTDIR)$(unitdir) \;
 	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)$(unitdir)/$$(basename {})' \;
-	find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec $(INSTALL_DATA) {} $(DESTDIR)/etc/init \ || :;
-	find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)/etc/init/$$(basename {})' \ || :;
+	-find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec $(INSTALL_DATA) {} $(DESTDIR)/etc/init \;
+	-find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)/etc/init/$$(basename {})' \;
 	cd $(RTE_OUTPUT); \
 	find ./protobuf/ -type f -regextype posix-extended -regex '.*\.py' -exec $(INSTALL_DATA) -D {} $(DESTDIR)$(libexecdir)/{} \;
 
@@ -194,7 +194,7 @@ vio_uninstall:
 	@find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec sh -c 'rm -f $(DESTDIR)$(libexecdir)/$$(basename {})' \;
 	@rm -f $(DESTDIR)/etc/default/virtioforwarder
 	@find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'rm -f $(DESTDIR)$(unitdir)/$$(basename {})' \;
-	@find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'rm -f $(DESTDIR)/etc/init/$$(basename {})' \ || :;
+	-@find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'rm -f $(DESTDIR)/etc/init/$$(basename {})' \;
 	@rm -rf $(DESTDIR)$(libexecdir)/protobuf/
 
 vio_clean:
