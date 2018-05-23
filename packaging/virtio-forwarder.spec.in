@@ -9,9 +9,13 @@ Source0:        virtio-forwarder-__VRELAY_TAG_VERSION__-__VRELAY_BUILD_VERSION__
 Requires:       python-zmq, protobuf-python
 BuildRequires:  make gcc dpdk-devel
 BuildRequires:  protobuf-c-compiler protobuf-c-devel protobuf-compiler
-BuildRequires:  zeromq3-devel
+BuildRequires:  zeromq-devel
 BuildRequires:  python python-sphinx python-sphinx_rtd_theme
 BuildRequires:  numactl-devel
+BuildRequires:  systemd
+
+# Track DPDK's architectures
+ExclusiveArch: x86_64 aarch64 ppc64le
 
 %description
 virtio-forwarder is a userspace networking application that forwards
