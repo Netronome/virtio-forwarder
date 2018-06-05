@@ -83,7 +83,7 @@ author = u'Bert van Leeuwen, Frik Botha'
 # built documents.
 #
 # The short X.Y version.
-version = u'__VRELAY_TAG_VERSION__' + '-' + u'__VRELAY_BUILD_VERSION__'
+version = u'__VRELAY_VERSION__'
 # The full version, including alpha/beta/rc tags.
 release = version
 

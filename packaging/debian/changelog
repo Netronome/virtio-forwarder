@@ -1,4 +1,4 @@
-virtio-forwarder (__VRELAY_VERSION__~ubuntu__UBUNTU_VER__) __UBUNTU_DIST__; urgency=low
+virtio-forwarder (__VRELAY_VERSION__-__PKG_RELEASE__ubuntu__UBUNTU_VER__) __UBUNTU_DIST__; urgency=low
   *  Initial release
  -- Frik Botha <frik.botha@netronome.com>  __DATE__
 __DISTRO_MAP__ trusty: 14.04

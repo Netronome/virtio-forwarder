@@ -19,7 +19,7 @@ v_maj = output.split('.')[0]
 v_min = output.split('.')[1]
 v_patch = output.split('.')[2].split('-')[0]
 v_build = output.split('-')[1]
-tag_string = "%s.%s.%s" % (v_maj, v_min, v_patch)
+ver_string = "%s.%s.%s.%s" % (v_maj, v_min, v_patch, v_build)
 
 with open ('./doc/conf.py', 'r') as f:
     lines = f.readlines()
@@ -27,8 +27,7 @@ with open ('./doc/conf.py', 'r') as f:
 lines_new = []
 for line in lines:
     tmp = line
-    tmp = re.sub('__VRELAY_TAG_VERSION__', tag_string, tmp)
-    tmp = re.sub('__VRELAY_BUILD_VERSION__', v_build, tmp)
+    tmp = re.sub('__VRELAY_VERSION__', ver_string, tmp)
     tmp = re.sub('__APP__NAME__', 'virtio-forwarder', tmp)
     lines_new.append(tmp)
 

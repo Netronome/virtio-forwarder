@@ -55,6 +55,7 @@ APP = virtio-forwarder
 
 # Default Ubuntu distro
 UBUNTU_DISTRO ?= xenial
+PKG_RELEASE = 1
 
 # all source are stored in SRCS-y
 SRCS-y := \
@@ -211,13 +212,13 @@ deb: version
 	@cp vrelay_version.h.in _build/virtio-forwarder/
 	@find startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec cp --parents {} _build/virtio-forwarder/ \;
 	cd _build; \
-	VERSION_TAG_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/BUILD/&&!/SHASH/{count++; if (count<3) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
-	VERSION_BUILD_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&/BUILD/{print $$3}' vrelay_version.h)"; \
-	mv virtio-forwarder/ virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING; \
-	tar cfjp virtio-forwarder-$${VERSION_TAG_STRING}_$$VERSION_BUILD_STRING.orig.tar.bz2 virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING/; \
-	cp -r ../packaging/debian virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING/; \
-	sed -ri "s/__VRELAY_VERSION__/$$VERSION_TAG_STRING\.$$VERSION_BUILD_STRING/" virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING/debian/changelog; \
-	cd virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING/; \
+	VERSION_VER_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/SHASH/{count++; if (count<4) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
+	mv virtio-forwarder/ virtio-forwarder-$$VERSION_VER_STRING; \
+	tar cfjp virtio-forwarder_$${VERSION_VER_STRING}.orig.tar.bz2 virtio-forwarder-$$VERSION_VER_STRING/; \
+	cp -r ../packaging/debian virtio-forwarder-$$VERSION_VER_STRING/; \
+	sed -ri "s/__VRELAY_VERSION__/$$VERSION_VER_STRING/" virtio-forwarder-$$VERSION_VER_STRING/debian/changelog; \
+	sed -ri "s/__PKG_RELEASE__/$(PKG_RELEASE)/" virtio-forwarder-$$VERSION_VER_STRING/debian/changelog; \
+	cd virtio-forwarder-$$VERSION_VER_STRING/; \
 	UBUNTU_VER="$(shell grep '__DISTRO_MAP__ $(UBUNTU_DISTRO)' ./packaging/debian/changelog | sed 's/^.*: //')"; \
 	DATE_STR="$(shell date --rfc-2822)"; \
 	sed -ri "s/__UBUNTU_DIST__/$(UBUNTU_DISTRO)/g" ./debian/changelog; \
@@ -241,28 +242,24 @@ rpm: version
 	@cp vrelay_version.h.in _build/virtio-forwarder/
 	@find startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec cp --parents {} _build/virtio-forwarder/ \;
 	cd _build; \
-	VERSION_TAG_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/BUILD/&&!/SHASH/{count++; if (count<3) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
-	VERSION_BUILD_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&/BUILD/{print $$3}' vrelay_version.h)"; \
+	VERSION_VER_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/SHASH/{count++; if (count<4) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
 	cp ../packaging/virtio-forwarder.spec.in ../rpmbuild/SPECS/virtio-forwarder.spec; \
-	sed -ri "s/__VRELAY_TAG_VERSION__/$$VERSION_TAG_STRING/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
-	sed -ri "s/__VRELAY_BUILD_VERSION__/$$VERSION_BUILD_STRING/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
-	sed -ri "s/__CHANGELOG_CONTENTS__/- $(shell git log --oneline -n1 HEAD | sed -e 's/[\/&]/\\&/g')/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
+	sed -ri "s/__VRELAY_VERSION__/$$VERSION_VER_STRING/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
+	sed -ri "s/__PKG_RELEASE__/$(PKG_RELEASE)/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
 	DATE_STR="$(shell date +'%a %b %d %Y')"; \
 	sed -ri "s/__DATE__/$$DATE_STR/g" ../rpmbuild/SPECS/virtio-forwarder.spec; \
-	mv virtio-forwarder/ virtio-forwarder-$$VERSION_TAG_STRING; \
-	tar cfjp ../rpmbuild/SOURCES/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING.tar.bz2 virtio-forwarder-$$VERSION_TAG_STRING/; \
+	mv virtio-forwarder/ virtio-forwarder-$$VERSION_VER_STRING; \
+	tar cfjp ../rpmbuild/SOURCES/virtio-forwarder-$$VERSION_VER_STRING-$(PKG_RELEASE).tar.bz2 virtio-forwarder-$$VERSION_VER_STRING/; \
 	rpmbuild -$${RPMBUILD_FLAGS:-ba} -D "_topdir $(shell pwd)/rpmbuild/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
-	if [ -z $${RPMBUILD_FLAGS:+x} ]; then cp ../rpmbuild/RPMS/x86_64/virtio-forwarder*-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING*.rpm $${RPM_OUTDIR:-.}; fi; \
-	cp ../rpmbuild/SRPMS/virtio-forwarder-$$VERSION_TAG_STRING-$$VERSION_BUILD_STRING*src.rpm $${RPM_OUTDIR:-.}
+	if [ -z $${RPMBUILD_FLAGS:+x} ]; then cp ../rpmbuild/RPMS/x86_64/virtio-forwarder*-$$VERSION_VER_STRING-$(PKG_RELEASE)*.rpm $${RPM_OUTDIR:-.}; fi; \
+	cp ../rpmbuild/SRPMS/virtio-forwarder-$$VERSION_VER_STRING-$(PKG_RELEASE)*src.rpm $${RPM_OUTDIR:-.}
 
 prepare_docs: version
 	@rm -fr _build; mkdir -p _build/
 	cp $${RTE_SRCDIR:+$$RTE_SRCDIR/}doc/* _build/
 	cd _build; \
-	VERSION_TAG_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/BUILD/&&!/SHASH/{count++; if (count<3) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
-	VERSION_BUILD_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&/BUILD/{print $$3}' vrelay_version.h)"; \
-	sed -ri "s/__VRELAY_TAG_VERSION__/$$VERSION_TAG_STRING/" conf.py; \
-	sed -ri "s/__VRELAY_BUILD_VERSION__/$$VERSION_BUILD_STRING/" conf.py; \
+	VERSION_VER_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/SHASH/{count++; if (count<4) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
+	sed -ri "s/__VRELAY_VERSION__/$$VERSION_VER_STRING/" conf.py; \
 	sed -ri "s/__APP__NAME__/$(APP)/" conf.py
 
 doc: prepare_docs

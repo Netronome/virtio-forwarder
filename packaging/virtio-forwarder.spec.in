@@ -1,11 +1,11 @@
 Name:           virtio-forwarder
-Version:        __VRELAY_TAG_VERSION__
-Release:        __VRELAY_BUILD_VERSION__%{?dist}
+Version:        __VRELAY_VERSION__
+Release:        __PKG_RELEASE__%{?dist}
 Summary:        SR-IOV virtual function to virtio packet forwarder
 
 License:        BSD
 URL:            http://netronome.com
-Source0:        virtio-forwarder-__VRELAY_TAG_VERSION__-__VRELAY_BUILD_VERSION__.tar.bz2
+Source0:        virtio-forwarder-__VRELAY_VERSION__-__PKG_RELEASE__.tar.bz2
 Requires:       python-zmq, protobuf-python
 BuildRequires:  make gcc dpdk-devel
 BuildRequires:  protobuf-c-compiler protobuf-c-devel protobuf-compiler
@@ -54,6 +54,6 @@ systemctl daemon-reload
 %{_unitdir}/vio4wd_core_scheduler.service
 
 %changelog
-* Mon May 21 2018 Frik Botha <frik.botha@netronome.com>
-- __VRELAY_TAG_VERSION__-__VRELAY_BUILD_VERSION__
-__CHANGELOG_CONTENTS__
+* __DATE__ Frik Botha <frik.botha@netronome.com>
+- __VRELAY_VERSION__-__PKG_RELEASE__
+- Initial release
