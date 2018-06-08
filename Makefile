@@ -54,7 +54,7 @@ unitdir ?= /usr/lib/systemd/system
 APP = virtio-forwarder
 
 # Default Ubuntu distro
-UBUNTU_DISTRO ?= xenial
+DEBIAN_DISTRO ?= unstable
 PKG_RELEASE = 1
 
 # all source are stored in SRCS-y
@@ -219,11 +219,8 @@ deb: version
 	sed -ri "s/__VRELAY_VERSION__/$$VERSION_VER_STRING/" virtio-forwarder-$$VERSION_VER_STRING/debian/changelog; \
 	sed -ri "s/__PKG_RELEASE__/$(PKG_RELEASE)/" virtio-forwarder-$$VERSION_VER_STRING/debian/changelog; \
 	cd virtio-forwarder-$$VERSION_VER_STRING/; \
-	UBUNTU_VER="$(shell grep '__DISTRO_MAP__ $(UBUNTU_DISTRO)' ./packaging/debian/changelog | sed 's/^.*: //')"; \
 	DATE_STR="$(shell date --rfc-2822)"; \
-	sed -ri "s/__UBUNTU_DIST__/$(UBUNTU_DISTRO)/g" ./debian/changelog; \
-	sed -ri "s/__UBUNTU_VER__/$$UBUNTU_VER/g" ./debian/changelog; \
-	sed -i "/^__DISTRO_MAP__/d" ./debian/changelog; \
+	sed -ri "s/__DEBIAN_DIST__/$(DEBIAN_DISTRO)/g" ./debian/changelog; \
 	sed -ri "s/__DATE__/$$DATE_STR/g" ./debian/changelog; \
 	debuild --rootcmd=fakeroot -e RTE_SDK -e RTE_TARGET -e PATH -e CFLAGS -e V -us -uc
 

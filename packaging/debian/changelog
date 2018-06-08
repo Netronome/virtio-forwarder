@@ -1,6 +1,3 @@
-virtio-forwarder (__VRELAY_VERSION__-__PKG_RELEASE__ubuntu__UBUNTU_VER__) __UBUNTU_DIST__; urgency=low
+virtio-forwarder (__VRELAY_VERSION__-__PKG_RELEASE__~__DEBIAN_DIST__) __DEBIAN_DIST__; urgency=low
   *  Initial release
  -- Frik Botha <frik.botha@netronome.com>  __DATE__
-__DISTRO_MAP__ trusty: 14.04
-__DISTRO_MAP__ xenial: 16.04
-__DISTRO_MAP__ bionic: 18.04
