@@ -29,8 +29,9 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+ARCH ?= x86_64
 RTE_SDK ?= /usr/share/dpdk
-RTE_TARGET ?= x86_64-default-linuxapp-gcc
+RTE_TARGET ?= $(ARCH)-default-linuxapp-gcc
 
 ifeq ($(wildcard $(RTE_SDK)),)
     $(warning RTE_SDK=$(RTE_SDK) does not exist!)
