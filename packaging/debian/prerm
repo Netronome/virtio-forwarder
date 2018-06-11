@@ -4,5 +4,5 @@ set -e
 #DEBHELPER#
 
 # Hardcode path
-pyclean /usr/libexec/virtio-forwarder
+pyclean /usr/lib/virtio-forwarder
 set +e

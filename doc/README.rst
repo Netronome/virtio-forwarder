@@ -219,7 +219,7 @@ VFs and bonds. Depending on the use case, one of the following may be
 appropriate:
 
 * **ZeroMQ port control** for the purpose of manual device and socket management
-  at run-time. Run ``/usr/libexec/virtio-forwarder/virtioforwarder_port_control.py -h``
+  at run-time. Run ``/usr/lib/virtio-forwarder/virtioforwarder_port_control.py -h``
   for usage guidelines. To enable ZeroMQ VF management, set
   ``VIRTIOFWD_ZMQ_PORT_CONTROL_EP`` to an appropriate path in the configuration
   file.
@@ -522,7 +522,7 @@ daemon will only consider CPUs that are local to a relay's NUMA to service it.
 
 Debugging Utilities
 ===================
-Helper and debugging scripts are located in /usr/libexec/virtio-forwarder/.
+Helper and debugging scripts are located in /usr/lib/virtio-forwarder/.
 Here are pointers to using some of the more useful ones:
 
 - virtioforwarder_stats.py: Gathers statistics (including rate stats) from running
