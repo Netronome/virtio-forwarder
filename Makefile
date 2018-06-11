@@ -50,6 +50,7 @@ bindir = $(prefix)/bin
 libexecdir = $(prefix)/libexec/virtio-forwarder
 mandir = $(prefix)/share/man/man8
 unitdir ?= /usr/lib/systemd/system
+VIO4WD_SHIP_UPSTART ?= n
 
 # binary name
 APP = virtio-forwarder
@@ -172,7 +173,9 @@ vio_installdirs:
 	mkdir -p $(DESTDIR)$(libexecdir)
 	mkdir -p $(DESTDIR)/etc/default
 	mkdir -p $(DESTDIR)$(unitdir)
-	mkdir -p $(DESTDIR)/etc/init
+	@if [ "$(VIO4WD_SHIP_UPSTART)" = "y" ]; then \
+		mkdir -p $(DESTDIR)/etc/init; \
+	fi
 	mkdir -p $(DESTDIR)$(mandir)
 
 vio_install: vio_installdirs
@@ -185,8 +188,10 @@ vio_install: vio_installdirs
 	sed -ri "s#__BINDIR__#$(bindir)#" $(DESTDIR)/etc/default/virtioforwarder
 	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec $(INSTALL_DATA) {} $(DESTDIR)$(unitdir) \;
 	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)$(unitdir)/$$(basename {})' \;
-	-find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec $(INSTALL_DATA) {} $(DESTDIR)/etc/init \;
-	-find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)/etc/init/$$(basename {})' \;
+	@if [ "$(VIO4WD_SHIP_UPSTART)" = "y" ]; then \
+		find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec $(INSTALL_DATA) {} $(DESTDIR)/etc/init \;; \
+		find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)/etc/init/$$(basename {})' \;; \
+	fi
 	cd $(RTE_OUTPUT); \
 	find ./protobuf/ -type f -regextype posix-extended -regex '.*\.py' -exec $(INSTALL_DATA) -D {} $(DESTDIR)$(libexecdir)/{} \;
 
@@ -196,7 +201,9 @@ vio_uninstall:
 	@find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec sh -c 'rm -f $(DESTDIR)$(libexecdir)/$$(basename {})' \;
 	@rm -f $(DESTDIR)/etc/default/virtioforwarder
 	@find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'rm -f $(DESTDIR)$(unitdir)/$$(basename {})' \;
-	-@find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'rm -f $(DESTDIR)/etc/init/$$(basename {})' \;
+	@if [ "$(VIO4WD_SHIP_UPSTART)" = "y" ]; then \
+		find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'rm -f $(DESTDIR)/etc/init/$$(basename {})' \;; \
+	fi
 	@rm -rf $(DESTDIR)$(libexecdir)/protobuf/
 
 vio_clean:
@@ -208,7 +215,9 @@ deb: version
 	@find scripts/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.py' -exec cp --parents {} _build/virtio-forwarder/ \;
 	@cp --parents startup/virtioforwarder _build/virtio-forwarder/
 	@cp --parents startup/systemd/*.service _build/virtio-forwarder/
-	@cp --parents startup/upstart/*.conf _build/virtio-forwarder/
+	@if [ "$(VIO4WD_SHIP_UPSTART)" = "y" ]; then \
+		cp --parents startup/upstart/*.conf _build/virtio-forwarder/; \
+	fi
 	@cp -r doc/ _build/virtio-forwarder/
 	@cp vrelay_version.h.in _build/virtio-forwarder/
 	@find startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec cp --parents {} _build/virtio-forwarder/ \;
