@@ -104,7 +104,7 @@ Virtioforwarder__PortControlRequest__to_str(
 		);
 		strcpy(&pci_addr_str[(i+1)*sz+i], " ");
 	}
-	snprintf(ans, len, "[op=%s, num_VFs=%lu, pci_addrs=<%s>, virtio_id=%u]",
+	snprintf(ans, len, "[op=%s, num_VFs=%zu, pci_addrs=<%s>, virtio_id=%u]",
 		Virtioforwarder__PortControlRequest__Op__to_str(
 			pc->op, op_str, sizeof op_str
 		),
