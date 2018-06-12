@@ -40,7 +40,8 @@ rm -rf $RPM_BUILD_ROOT
 env -i PATH=$PATH ${RTE_SDK:+RTE_SDK=$RTE_SDK} \
 	${RTE_TARGET:+RTE_TARGET=$RTE_TARGET} \
 	${CFLAGS:+CFLAGS="$CFLAGS"} ${V:+V="$V"} \
-	%{make_install} prefix=%{_prefix} unitdir=%{_unitdir}
+	%{make_install} prefix=%{_prefix} unitdir=%{_unitdir} \
+	libexecdir=%{_libdir}/virtio-forwarder
 
 %post
 systemctl daemon-reload
@@ -48,7 +49,7 @@ systemctl daemon-reload
 %files
 %{_prefix}/bin/virtio-forwarder
 %{_prefix}/share/man/man8/virtio-forwarder.8.gz
-%{_prefix}/lib/virtio-forwarder
+%{_libdir}/virtio-forwarder
 %config(noreplace) /etc/default/virtioforwarder
 %{_unitdir}/virtio-forwarder.service
 %{_unitdir}/vio4wd_core_scheduler.service

@@ -47,7 +47,7 @@ INSTALL_DATA = $(INSTALL) -m 644
 # Default directories
 prefix ?= /usr/local
 bindir = $(prefix)/bin
-libexecdir = $(prefix)/lib/virtio-forwarder
+libexecdir ?= $(prefix)/lib/virtio-forwarder
 mandir = $(prefix)/share/man/man8
 unitdir ?= /usr/lib/systemd/system
 VIO4WD_SHIP_UPSTART ?= n
