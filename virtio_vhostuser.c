@@ -189,8 +189,6 @@ static int virtio_vhostuser_new_device_cb(int vid)
 	return -1;
 }
 
-
-
 static void virtio_vhostuser_destroy_device_cb(int vid)
 {
 	char str[128];
@@ -240,7 +238,45 @@ static int virtio_vhostuser_features_changed_cb(int vid, uint64_t features)
 	log_debug("Feature change on relay %d ('%s'). New features=%lu", id,
 		ifname, features);
 
+	/* From the docs:
+	 * >VHOST_F_LOG_ALL will be set/cleared at the start/end of live
+	 * >migration, respectively.
+	 *
+	 * RTE_VHOST_NEED_LOG() checks for VHOST_F_LOG_ALL.
+	 * This check ensures that we do not call rte_vhost_avail_entries
+	 * (virtio_worker.c, dpdk_rx) too late during the migration procedure. A
+	 * segmentation fault results if we do: Note that this may actually be a
+	 * DPDK issue, but for now we workaround it using the lm_pending flag.
+	 */
+	if (RTE_VHOST_NEED_LOG(features)) {
+		log_info("VHOST_F_LOG_ALL is set. Live migration is being initiated on virtio %d",
+			id);
+		virtio_set_lm_pending(id);
+	}
+
 	return 0;
+}
+#endif
+
+#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
+static int virtio_vhostuser_new_connection_cb(int vid)
+{
+	char ifname[128];
+
+	rte_vhost_get_ifname(vid, ifname, 128);
+	log_debug("new virtio connection on '%s' (vid=%d)", ifname, vid);
+
+	return 0;
+}
+
+static void virtio_vhostuser_destroy_connection_cb(int vid)
+{
+	char ifname[128];
+
+	rte_vhost_get_ifname(vid, ifname, 128);
+	log_debug("destroy virtio connection on '%s'", ifname);
+
+	return;
 }
 #endif
 #else
@@ -352,7 +388,11 @@ static const struct virtio_net_device_ops virtio_vhostuser_ops = {
 #endif
 	.new_device =  virtio_vhostuser_new_device_cb,
 	.destroy_device = virtio_vhostuser_destroy_device_cb,
-	.vring_state_changed = virtio_vhostuser_vring_state_change_cb
+	.vring_state_changed = virtio_vhostuser_vring_state_change_cb,
+#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
+	.new_connection = virtio_vhostuser_new_connection_cb,
+	.destroy_connection = virtio_vhostuser_destroy_connection_cb,
+#endif
 };
 
 #if RTE_VERSION < RTE_VERSION_NUM(17,5,0,0)

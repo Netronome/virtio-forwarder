@@ -217,4 +217,9 @@ int virtio_get_free_relay_id(char **socket_map);
  */
 bool virtio_relay_has_device(unsigned id, const char *dev);
 
+/**
+ * @brief Set the migration pending flag on the relay.
+ */
+void virtio_set_lm_pending(int relay_id);
+
 #endif // _VIRTIO_WORKER_THREAD
