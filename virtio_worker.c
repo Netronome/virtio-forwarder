@@ -139,6 +139,7 @@ struct relay_virtio {
 	struct rte_mbuf *tx_pkts[BURST_LEN];
 	unsigned tx_pkts_avail, tx_pkts_used;
 	rte_spinlock_t sl;
+	volatile bool lm_pending;
 } __attribute__ ((aligned (RTE_CACHE_LINE_SIZE)));
 
 struct relay_dpdk {
@@ -612,6 +613,7 @@ static int configure_dev_with_virtio(const char *pci_dbdf, dpdk_port_t port_id,
 
 	/* Success */
 	log_info("Added dpdk port %hhu to relay", port_id);
+	relay->vio.lm_pending = false;
 	relay->dpdk.dpdk_port = port_id;
 	strncpy(relay->dpdk.pci_dbdf, pci_dbdf, 20);
 	find_vf2virtio_cpu(relay);
@@ -1303,15 +1305,22 @@ static inline int dpdk_rx(vio_vf_relay_t *relay)
 		return -1;
 #endif
 
+	/* The following check prevents a segmentation fault during live
+	 * migration when using DPDK >= 17.11. */
+	if (likely(!relay->vio.lm_pending)) {
 #if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
-	try_rcv = rte_vhost_avail_entries((int)relay->vio.vio_dev,
-						VIRTIO_RXQ);
+		try_rcv = rte_vhost_avail_entries((int)relay->vio.vio_dev,
+							VIRTIO_RXQ);
 #else
-	try_rcv = vring_available_entries((struct virtio_net *)relay->vio.vio_dev,
-						VIRTIO_RXQ);
+		try_rcv = vring_available_entries(
+					(struct virtio_net *)relay->vio.vio_dev,
+					VIRTIO_RXQ);
 #endif
-	if (try_rcv > BURST_LEN)
+		if (try_rcv > BURST_LEN)
+			try_rcv = BURST_LEN;
+	} else {
 		try_rcv = BURST_LEN;
+	}
 #ifndef VIRTIO_ECHO
 	rcvd = rte_eth_rx_burst(relay->dpdk.dpdk_port, 0, pkts, try_rcv);
 #else
@@ -1629,6 +1638,7 @@ int virtio_forwarders_initialize(void)
 		virtio_vf_relays[w].dpdk.rx_pkts_used = 0;
 		virtio_vf_relays[w].vio.tx_pkts_avail = 0;
 		virtio_vf_relays[w].vio.tx_pkts_used = 0;
+		virtio_vf_relays[w].vio.lm_pending = false;
 		rte_spinlock_init(&virtio_vf_relays[w].vio.sl);
 		rte_spinlock_init(&virtio_vf_relays[w].dpdk.sl);
 	}
@@ -1849,6 +1859,7 @@ int virtio_forwarder_add_virtio(void *virtionet, unsigned id)
 			log_warning("start_eth_dev(port %u) failed with error %i ('%s')",
 				relay->dpdk.dpdk_port, err, rte_strerror(-err));
 		} else {
+			relay->vio.lm_pending = false;
 			relay->dpdk.state = DPDK_READY;
 			__sync_synchronize();
 			worker_threads[relay->dpdk.vf2vio_cpu].need_update = true;
@@ -2206,7 +2217,6 @@ int virtio_get_free_relay_id(char **socket_map)
 
 bool virtio_relay_has_device(unsigned id, const char *dev)
 {
-
 	vio_vf_relay_t *relay;
 
 	if (id >= MAX_RELAYS) {
@@ -2217,4 +2227,17 @@ bool virtio_relay_has_device(unsigned id, const char *dev)
 	relay = &virtio_vf_relays[id];
 
 	return pci_dbdf_equal(dev, relay->dpdk.pci_dbdf);
+}
+
+void virtio_set_lm_pending(int relay_id)
+{
+	vio_vf_relay_t *relay;
+
+	if (relay_id >= MAX_RELAYS) {
+		log_error("Tried to flip live migration flag for an invalid virtio ID %d!",
+			relay_id);
+		return;
+	}
+	relay = &virtio_vf_relays[relay_id];
+	relay->vio.lm_pending = true;
 }
