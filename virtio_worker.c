@@ -433,6 +433,7 @@ migrate_mempool(vio_vf_relay_t *relay, int newnode, unsigned num_pktmbufs)
 	 * See http://dpdk.org/doc/api/rte__ethdev_8h.html
 	 */
 	assert(relay->dpdk.state != DPDK_READY);
+	assert(relay->dpdk.rx_pkts_avail == 0);
 	if (relay->dpdk.state == DPDK_ADDED) {
 		log_debug("Previously setup VF requires update. Stopping VF...");
 		rte_eth_dev_stop(port_id);
@@ -1280,6 +1281,7 @@ static inline int relay_vm2vf_traffic(vio_vf_relay_t *relay)
 			--avail;
 			rte_pktmbuf_free(pkts[avail]);
 		}
+		relay->vio.tx_pkts_avail = 0;
 	}
 
 	if (unlikely(relay->vio.state == VIRTIO_REMOVING1)) {
@@ -1502,6 +1504,7 @@ static inline int relay_vf2vm_traffic(vio_vf_relay_t *relay)
 			--avail;
 			rte_pktmbuf_free(pkts[avail]);
 		}
+		relay->dpdk.rx_pkts_avail = 0;
 	}
 
 	if (unlikely(relay->vio.state == VIRTIO_REMOVING2))
