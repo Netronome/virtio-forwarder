@@ -1584,7 +1584,7 @@ int virtio_forwarders_initialize(void)
 	pthread_t static_vfs_init;
 	const struct virtio_vhostuser_conf *conf = &g_vio_worker_conf;
 
-	memset(virtio_vf_relays, 0, sizeof(*virtio_vf_relays));
+	memset(virtio_vf_relays, 0, sizeof(*virtio_vf_relays) * MAX_RELAYS);
 
 	/* Issue NUMA mismatch warnings. */
 	for (w=0; w<MAX_RELAYS; ++w) {
@@ -1644,7 +1644,7 @@ int virtio_forwarders_initialize(void)
 	}
 
 	/* Launch worker_func on all slaves. */
-	memset(worker_threads, 0, sizeof(*worker_threads));
+	memset(worker_threads, 0, sizeof(*worker_threads) * MAX_CPUS);
 	worker_core_bitmap = conf->worker_core_bitmap;
 	log_debug("Master running on core %u", rte_get_master_lcore());
 	log_debug("Starting workers on CPU bitmap 0x%08llX",
