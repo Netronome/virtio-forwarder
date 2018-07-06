@@ -6,16 +6,27 @@ Summary:        SR-IOV virtual function to virtio packet forwarder
 License:        BSD
 URL:            http://netronome.com
 Source0:        virtio-forwarder-__VRELAY_VERSION__-__PKG_RELEASE__.tar.bz2
-Requires:       python-zmq, protobuf-python
+Requires:       protobuf-python
+%if 0%{?rhel} && 0%{?rhel} <= 7
+Requires:       python-zmq
+%else
+Requires:       python2-zmq
+%endif
 BuildRequires:  make gcc dpdk-devel
 BuildRequires:  protobuf-c-compiler protobuf-c-devel protobuf-compiler
 BuildRequires:  zeromq-devel
-BuildRequires:  python python-sphinx python-sphinx_rtd_theme
+BuildRequires:  python2-devel python2-sphinx
+%if 0%{?rhel}
+BuildRequires:  python-sphinx_rtd_theme
+%else
+BuildRequires:  python2-sphinx_rtd_theme
+%endif
 BuildRequires:  numactl-devel
+%{?systemd_requires}
 BuildRequires:  systemd
 
 # Track DPDK's architectures
-ExclusiveArch: x86_64 aarch64 ppc64le
+ExclusiveArch: x86_64 aarch64 ppc64le %ix86
 
 %description
 virtio-forwarder is a userspace networking application that forwards
@@ -33,10 +44,9 @@ of the DPDK poll mode driver (PMD) mechanism.
 env -i PATH=$PATH ${RTE_SDK:+RTE_SDK=$RTE_SDK} \
 	${RTE_TARGET:+RTE_TARGET=$RTE_TARGET} \
 	${CFLAGS:+CFLAGS="$CFLAGS"} ${V:+V="$V"} \
-	make
+	%make_build
 
 %install
-rm -rf $RPM_BUILD_ROOT
 env -i PATH=$PATH ${RTE_SDK:+RTE_SDK=$RTE_SDK} \
 	${RTE_TARGET:+RTE_TARGET=$RTE_TARGET} \
 	${CFLAGS:+CFLAGS="$CFLAGS"} ${V:+V="$V"} \
@@ -44,17 +54,27 @@ env -i PATH=$PATH ${RTE_SDK:+RTE_SDK=$RTE_SDK} \
 	libexecdir=%{_libdir}/virtio-forwarder
 
 %post
-systemctl daemon-reload
+%systemd_post virtio-forwarder.service
+%systemd_post vio4wd_core_scheduler.service
+
+%preun
+%systemd_preun virtio-forwarder.service
+%systemd_preun vio4wd_core_scheduler.service
+
+%postun
+%systemd_postun virtio-forwarder.service
+%systemd_postun_with_restart vio4wd_core_scheduler.service
 
 %files
-%{_prefix}/bin/virtio-forwarder
-%{_prefix}/share/man/man8/virtio-forwarder.8.gz
+%{_bindir}/virtio-forwarder
+%{_mandir}/man8/virtio-forwarder.8.*
 %{_libdir}/virtio-forwarder
-%config(noreplace) /etc/default/virtioforwarder
+%config(noreplace) %{_sysconfdir}/default/virtioforwarder
 %{_unitdir}/virtio-forwarder.service
 %{_unitdir}/vio4wd_core_scheduler.service
+%doc README.md
+%license LICENSE
 
 %changelog
-* __DATE__ Frik Botha <frik.botha@netronome.com>
-- __VRELAY_VERSION__-__PKG_RELEASE__
+* __DATE__ Frik Botha <frik.botha@netronome.com> - __VRELAY_VERSION__-__PKG_RELEASE__
 - Initial release
