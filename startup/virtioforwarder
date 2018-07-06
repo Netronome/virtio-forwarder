@@ -93,7 +93,7 @@ VIO4WD_CORE_SCHED_POLL_INTERVAL=
 # NOTE: The core scheduler will override any of the above pinnings if it is running!
 VIRTIOFWD_CPU_PINS=
 
-# PID file (virtioforwarder.pid) will be written to this directory
+# PID file (virtio-forwarder.pid) will be written to this directory
 VIRTIOFWD_PID_DIR=/var/run
 
 # ZeroMQ IPC endpoint used for configuration queries

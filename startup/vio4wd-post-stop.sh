@@ -33,7 +33,7 @@
 . /etc/default/virtioforwarder || exit 1
 : ${VIRTIOFWD_PID_DIR:?not set}
 
-pid_fname="$VIRTIOFWD_PID_DIR/virtioforwarder.pid"
+pid_fname="$VIRTIOFWD_PID_DIR/virtio-forwarder.pid"
 
 # In case we are "stopping" after virtio-forwarder failed to start.
 test ! -e "$pid_fname" && exit 0
