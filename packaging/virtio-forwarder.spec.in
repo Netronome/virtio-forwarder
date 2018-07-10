@@ -5,7 +5,7 @@ Summary:        SR-IOV virtual function to virtio packet forwarder
 
 License:        BSD
 URL:            http://netronome.com
-Source0:        virtio-forwarder-__VRELAY_VERSION__-__PKG_RELEASE__.tar.bz2
+Source0:        https://rpm.netronome.com/archives/virtio-forwarder/virtio-forwarder-__VRELAY_VERSION__-__PKG_RELEASE__.tar.bz2
 Requires:       protobuf-python
 %if 0%{?rhel} && 0%{?rhel} <= 7
 Requires:       python-zmq
