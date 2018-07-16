@@ -366,6 +366,13 @@ static void get_rx_conf(const struct rte_eth_dev_info *dev_info,
 			struct rte_eth_rxconf *rx_conf)
 {
 	*rx_conf = dev_info->default_rxconf;
+#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
+	uint64_t desired_offloads;
+	desired_offloads = DEV_RX_OFFLOAD_IPV4_CKSUM |
+				DEV_RX_OFFLOAD_UDP_CKSUM |
+				DEV_RX_OFFLOAD_TCP_CKSUM;
+	rx_conf->offloads = dev_info->rx_offload_capa & desired_offloads;
+#endif
 }
 
 static int cleanup_eth_dev(dpdk_port_t port_id)
@@ -508,6 +515,7 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 		port_id, name, virtio_id);
 
 	eth_conf.rxmode.jumbo_frame = 1;
+	eth_conf.rxmode.hw_ip_checksum = 1;
 	eth_conf.rxmode.max_rx_pkt_len = relay->use_jumbo ? JUMBO_MBUF_SIZE :
 						DEFAULT_MBUF_SIZE;
 	err = rte_eth_dev_configure(port_id, 1, 1, &eth_conf);
