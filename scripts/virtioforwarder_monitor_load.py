@@ -33,9 +33,9 @@
 import argparse
 import zmq
 import time
-from core_scheduler import RelayRate
-from core_scheduler import open_socket
-from core_scheduler import reconnect_send_recv
+from virtioforwarder_core_scheduler import RelayRate
+from virtioforwarder_core_scheduler import open_socket
+from virtioforwarder_core_scheduler import reconnect_send_recv
 
 import os
 import sys
