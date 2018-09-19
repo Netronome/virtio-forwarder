@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python2
 
 # NOTE: This is a hack which duplicates the functionality of the prepare_docs
 # make target.

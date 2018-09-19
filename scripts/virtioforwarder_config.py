@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python2
 #   BSD LICENSE
 #
 #   Copyright(c) 2016-2017 Netronome.
