@@ -61,7 +61,7 @@ VIRTIOFWD_DYNAMIC_SOCKETS=
 #-------------------------------------------------------------------------------
 
 # Use dynamic load balancing. Anything else than 'true' equates to disabled
-VIO4WD_CORE_SCHED_ENABLE=false
+VIO4WD_CORE_SCHED_ENABLE=true
 
 # Switching sensitivity. Higher value decrease the sensitivity
 VIO4WD_CORE_SCHED_SENSITIVITY=
