@@ -71,6 +71,9 @@ VIO4WD_CORE_SCHED_LOG_LEVEL=6
 
 # Polling interval
 VIO4WD_CORE_SCHED_POLL_INTERVAL=
+
+# Optimize globally instead of NUMA-local
+VIO4WD_CORE_SCHED_GLOBAL_NUMA_OPT=
 #-------------------------------------------------------------------------------
 
 

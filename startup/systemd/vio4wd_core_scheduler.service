@@ -14,7 +14,8 @@ ExecStart=/bin/bash -c '__LIBEXECDIR__/virtioforwarder_core_scheduler.py \
     $${VIRTIOFWD_ZMQ_CORE_SCHED_EP:+--sched-ep="$$VIRTIOFWD_ZMQ_CORE_SCHED_EP"} \
     $${VIO4WD_CORE_SCHED_SENSITIVITY:+--sensitivity="$$VIO4WD_CORE_SCHED_SENSITIVITY"} \
     $${VIO4WD_CORE_SCHED_POLL_INTERVAL:+--poll-interval="$$VIO4WD_CORE_SCHED_POLL_INTERVAL"} \
-    $${VIO4WD_CORE_SCHED_LOG_LEVEL:+--loglevel="$$VIO4WD_CORE_SCHED_LOG_LEVEL"}'
+    $${VIO4WD_CORE_SCHED_LOG_LEVEL:+--loglevel="$$VIO4WD_CORE_SCHED_LOG_LEVEL"}' \
+    $${VIO4WD_CORE_SCHED_GLOBAL_NUMA_OPT:+--global-numa-opt}
 
 [Install]
 WantedBy=multi-user.target

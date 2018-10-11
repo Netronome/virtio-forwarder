@@ -66,6 +66,11 @@ def _syntax():
         help=("set the load balancing sensitivity (>=0)"
             " Smaller is more sensitive")
     )
+    parser.add_argument(
+        '--global-numa-opt', action='store_true',
+        help='Do not condider NUMA affinities when optimizing'
+    )
+
     return parser
 # ]
 
@@ -382,7 +387,17 @@ def main():
             req.vf2virtio_cpu = relay.cpu.vf_to_vm
             numa_info[relay.socket_id][2].append(req)
 
-        # [ NUMA-local optimization
+        # Merge NUMA infos if global optimization was requested
+        if args.global_numa_opt:
+            e0 = list(set(worker_cores))
+            e1 = {}
+            e2 = []
+            for numa_node, info in numa_info.iteritems():
+                e1.update(info[1])
+                e2 = e2 + info[2]
+            numa_info = {-1: (e0, e1, e2)}
+
+        # [ [NUMA-local] optimization
         for numa_node, info in numa_info.iteritems():
             workers = info[0]           # set of worker cores
             relay_rates = info[1]       # dict of relay rate objects
@@ -426,7 +441,7 @@ def main():
                         "Could not migrate workers on NUMA %d." % numa_node)
             else:
                 syslog.syslog(syslog.LOG_INFO, "Worker cores still sufficiently balanced.")
-        # ] end NUMA-local optimization
+        # ] end [NUMA-local] optimization
 
         if mapping_changed:
             # Print new mapping
