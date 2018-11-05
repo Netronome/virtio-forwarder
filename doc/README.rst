@@ -25,40 +25,6 @@ Requirements
 - The SR-IOV VFs added to the relay must be bound to the igb_uio driver on the
   host.
 
-Access Control Policies
-=======================
-
-libvirt and apparmor
---------------------
-On Ubuntu systems, libvirt's apparmor permissions might need to be modified to
-allow read/write access to the hugepages directory and library files for QEMU:
-
-.. code:: bash
-
-	# in /etc/apparmor.d/abstractions/libvirt-qemu
-	# for latest QEMU
-	/usr/lib/x86_64-linux-gnu/qemu/* rmix,
-	# for access to hugepages
-	owner "/mnt/huge/libvirt/qemu/**" rw,
-	owner "/mnt/huge-1G/libvirt/qemu/**" rw,
-
-Be sure to substitute the hugetlbfs mountpoints that you use into the above. It
-may also be prudent to check for any deny lines in the apparmor configuration
-that may refer to paths used by virtio-forwarder, such as hugepage mounts or
-vhostuser sockets (default /tmp).
-
-SELinux
--------
-On RHEL or CentOS systems, SELinux's access control policies may need to be to
-be changed to allow virtio-forwarder to work. The semanage utility can be used to
-set the svirt_t domain into permissive mode, thereby allowing the functioning of
-the relay:
-
-.. code:: bash
-
-	yum install policycoreutils-python
-	semanage permissive -a svirt_t
-
 Hugepages
 =========
 virtio-forwarder requires 2M hugepages and QEMU/KVM performs better with 1G
@@ -84,29 +50,69 @@ hugepages.
 
 hugetlbfs needs to be mounted on the filesystem to allow applications to create
 and allocate handles to the mapped memory. The following lines mount the two
-types of hugepages on /mnt/huge (2M) and /mnt/huge-1G (1G):
+types of hugepages on /dev/hugepages (2M) and /dev/hugepages-1G (1G):
 
 .. code:: bash
 
 	grep hugetlbfs /proc/mounts | grep -q "pagesize=2M" || \
-	( mkdir -p /mnt/huge && mount nodev -t hugetlbfs -o rw,pagesize=2M /mnt/huge/ )
+	( mkdir -p /dev/hugepages && mount nodev -t hugetlbfs -o rw,pagesize=2M /dev/hugepages/ )
 	grep hugetlbfs /proc/mounts | grep -q "pagesize=1G" || \
-	( mkdir -p /mnt/huge-1G && mount nodev -t hugetlbfs -o rw,pagesize=1G /mnt/huge-1G/ )
+	( mkdir -p /dev/hugepages-1G && mount nodev -t hugetlbfs -o rw,pagesize=1G /dev/hugepages-1G/ )
 
 Finally, libvirt requires a special directory inside the hugepages mounts with
 the correct permissions in order to create the necessary per-VM handles:
 
 .. code:: bash
 
-	mkdir /mnt/huge-1G/libvirt
-	mkdir /mnt/huge/libvirt
-	chown [libvirt-]qemu:kvm -R /mnt/huge-1G/libvirt
-	chown [libvirt-]qemu:kvm -R /mnt/huge/libvirt
+	mkdir /dev/hugepages-1G/libvirt
+	mkdir /dev/hugepages/libvirt
+	chown [libvirt-]qemu:kvm -R /dev/hugepages-1G/libvirt
+	chown [libvirt-]qemu:kvm -R /dev/hugepages/libvirt
+
+.. note::
+
+	Substitute ``/dev/hugepages[-1G]`` with your actual hugepage mount
+	directory. A 2M hugepage mount location is created by default by some
+	distributions.
 
 .. note::
 
 	After these mounts have been prepared, the libvirt daemon will probably
 	need to be restarted.
+
+Access Control Policies
+=======================
+
+libvirt and apparmor
+--------------------
+On Ubuntu systems, libvirt's apparmor permissions might need to be modified to
+allow read/write access to the hugepages directory and library files for QEMU:
+
+.. code:: bash
+
+	# in /etc/apparmor.d/abstractions/libvirt-qemu
+	# for latest QEMU
+	/usr/lib/x86_64-linux-gnu/qemu/* rmix,
+	# for access to hugepages
+	owner "/dev/hugepages/libvirt/qemu/**" rw,
+	owner "/dev/hugepages-1G/libvirt/qemu/**" rw,
+
+Be sure to substitute the hugetlbfs mountpoints that you use into the above. It
+may also be prudent to check for any deny lines in the apparmor configuration
+that may refer to paths used by virtio-forwarder, such as hugepage mounts or
+vhostuser sockets (default /tmp).
+
+SELinux
+-------
+On RHEL or CentOS systems, SELinux's access control policies may need to be to
+be changed to allow virtio-forwarder to work. The semanage utility can be used to
+set the svirt_t domain into permissive mode, thereby allowing the functioning of
+the relay:
+
+.. code:: bash
+
+	yum install policycoreutils-python
+	semanage permissive -a svirt_t
 
 Installation
 ============
@@ -382,7 +388,7 @@ QEMU virtual machines can be run manually on the command line, or by using
 libvirt to manage them. To use QEMU manually with the vhost-user backed VirtIO
 which the virtio-forwarder provides, the following example can be used::
 
-	-object memory-backend-file,id=mem,size=3584M,mem-path=/mnt/huge-1G,share=on,prealloc=on \
+	-object memory-backend-file,id=mem,size=3584M,mem-path=/dev/hugepages-1G,share=on,prealloc=on \
 	-numa node,memdev=mem -mem-prealloc \
 	-chardev socket,id=chr0,path=/tmp/virtio-forwarder1.sock \
 	-netdev type=vhost-user,id=guest3,chardev=chr0,vhostforce \
