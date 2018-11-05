@@ -8,7 +8,7 @@ Priority: optional
 
 Package: virtio-forwarder
 Architecture: amd64 i386
-Depends: ${misc:Depends}, ${shlibs:Depends}, python, python-zmq, python-protobuf
+Depends: ${misc:Depends}, ${shlibs:Depends}, dpdk, python, python-zmq, python-protobuf
 Description: SR-IOV virtual function to virtio packet forwarder
  virtio-forwarder is a userspace networking application that forwards
  bi-directional traffic between SR-IOV virtual functions and virtio networking
