@@ -1022,18 +1022,32 @@ static inline uint32_t calc_eth_header_hash(struct ether_hdr *eth_hdr)
 	return rte_jhash_32b(buf, hashwords, 0xdeadbee5);
 }
 
-static inline void calc_mbuf_hash(struct rte_mbuf **pkts, uint16_t nb_pkts)
+static inline void
+calc_mbuf_queue(vio_vf_relay_t *relay, struct rte_mbuf **pkts, uint16_t nb_pkts)
 {
 	uint16_t i;
+	uint32_t h;
+	struct ether_hdr *eth_hdr;
 
 	for (i=0; i<nb_pkts; ++i) {
 		rte_prefetch0(rte_pktmbuf_mtod(pkts[i], void *));
 	}
-	for (i=0; i<nb_pkts; ++i) {
-		struct ether_hdr *eth_hdr;
 
+	for (i=0; i<nb_pkts; ++i) {
 		eth_hdr = rte_pktmbuf_mtod(pkts[i], struct ether_hdr *);
-		pkts[i]->hash.usr = calc_eth_header_hash(eth_hdr);
+		h = calc_eth_header_hash(eth_hdr);
+
+		/* Determine queue that is to be used for each packet. */
+		if (likely(relay->vio.pow2queues))
+			h = h & (relay->vio.rx_q_active - 1); /* Retain lower bits of h: cheap modulo. */
+		else
+			h = h % relay->vio.rx_q_active;
+		/* Here, h is a number < rx_q_active, so it can be used
+		 * to index the lookup table. */
+		h = relay->vio.rx_q_lut[h];
+
+		/* Batch same queue packets. */
+		pkts[i]->hash.fdir.id = h;
 	}
 }
 
@@ -1341,7 +1355,7 @@ static inline int dpdk_rx(vio_vf_relay_t *relay)
 	relay->dpdk.rx_pkts_used = 0;
 
 	if (relay->vio.rx_q_bitmap > 1)
-		calc_mbuf_hash(pkts, rcvd); /* For multiqueue. */
+		calc_mbuf_queue(relay, pkts, rcvd);
 
 	/* Update stats. */
 	if (rcvd) {
@@ -1365,55 +1379,63 @@ static inline int virtio_tx(vio_vf_relay_t *relay)
 		return -1;
 
 	if (multiqueue) {
-		unsigned i;
-		unsigned q[relay->dpdk.rx_pkts_avail];
-		unsigned _sent;
+		unsigned i, k=0, q;
+		int j;
+		uint8_t q_len[relay->vio.rx_q_active];
+		struct rte_mbuf *q_pkts[relay->vio.rx_q_active][BURST_LEN];
 
-		/* Find the queue that is to be used for each available packet. */
+		/* Batch same queue packets.
+		 * Optimization hint: This may be done redundantly when we fail
+		 * to enqueue all the packets in one go. Per-relay queues are
+		 * required to implement that though, and it won't play nice
+		 * with our disconnect logic... */
+		memset(q_len, 0, relay->vio.rx_q_active * sizeof(uint8_t));
 		for (i=0; i<relay->dpdk.rx_pkts_avail; ++i) {
-			unsigned h = pkts[i]->hash.usr;
-			if (likely(relay->vio.pow2queues))
-				h = h & (relay->vio.rx_q_active - 1); /* Retain lower bits of h. Similar to modulo -> result falls within num queues=rx_q_active. */
-			else
-				h = h % relay->vio.rx_q_active;
-			/* Here, h is a number < rx_q_active, so it can be used
-			 * to index the lookup table. */
-			h = relay->vio.rx_q_lut[h];
-			q[i] = h;
+			q = pkts[i]->hash.fdir.id;
+			q_pkts[q][q_len[q]++] = pkts[i];
 		}
 
-		/* Search run-lengths of same q. */
-		unsigned cur_q = q[0];
-		unsigned runlen = 1;
-		for (i=1; i<relay->dpdk.rx_pkts_avail; ++i) {
-			if (q[i] == cur_q) {
-				++runlen;
-			} else {
+		/* Send for each queue. */
+		for (i=0; i<relay->vio.rx_q_active; ++i) {
+			if (!q_len[i])
+				continue;
+
 #if defined(VIRTIO_RETRY_ENQUEUE)
-				_sent = worker_vhost_enqueue_burst(
-						relay->vio.vio_dev,
-						cur_q*2, pkts+i-runlen, runlen);
+			sent = worker_vhost_enqueue_burst(relay->vio.vio_dev,
+					i*2, q_pkts[i], q_len[i]);
 #else
-				_sent = rte_vhost_enqueue_burst(
-						relay->vio.vio_dev,
-						cur_q*2, pkts+i-runlen, runlen);
+			sent = rte_vhost_enqueue_burst(relay->vio.vio_dev,
+					i*2, q_pkts[i], q_len[i]);
 #endif
-				sent += _sent;
-				cur_q = q[i];
-				runlen = 1;
-				if (_sent != runlen) { /* Stop immediately when an error is encountered. Remaining packets will be processed in a subsequent run. */
-				        runlen = 0;
-				        break;
-				}
+
+			/* Update sent to VM stats. */
+			if (sent) {
+				unsigned bytes=0;
+				for (j=0; j<sent; ++j)
+					bytes += q_pkts[i][j]->pkt_len;
+				relay->stats.vio_tx_bytes += bytes;
+				relay->stats.vio_tx += sent;
+			}
+
+			/* Add unsuccessful packets back to the internal buffer.
+			 * Note that this breaks strict ordering within the
+			 * buffer. Order within a flow remains. */
+			j = q_len[i];
+			while (j > sent) {
+				j--;
+				pkts[k++] = q_pkts[i][j];
+			}
+
+			/* Free packets that have been enqueued. */
+			while (sent) {
+				--sent;
+				rte_pktmbuf_free(q_pkts[i][sent]);
 			}
 		}
-#if defined(VIRTIO_RETRY_ENQUEUE)
-		sent += worker_vhost_enqueue_burst(relay->vio.vio_dev,
-						cur_q*2, pkts+i-runlen, runlen);
-#else
-		sent += rte_vhost_enqueue_burst(relay->vio.vio_dev,
-						cur_q*2, pkts+i-runlen, runlen);
-#endif
+
+		relay->dpdk.rx_pkts_avail = k;
+		/* The used counter remains the same, since we add failed
+		 * packets to the former 'used' position. */
 	} else {
 #if defined(VIRTIO_RETRY_ENQUEUE)
 		sent += worker_vhost_enqueue_burst(relay->vio.vio_dev,
@@ -1424,24 +1446,24 @@ static inline int virtio_tx(vio_vf_relay_t *relay)
 						VIRTIO_RXQ, pkts,
 						relay->dpdk.rx_pkts_avail);
 #endif
-	}
-	relay->dpdk.rx_pkts_avail -= sent;
-	relay->dpdk.rx_pkts_used += sent;
-	assert(relay->dpdk.rx_pkts_used <= BURST_LEN);
+		relay->dpdk.rx_pkts_avail -= sent;
+		relay->dpdk.rx_pkts_used += sent;
+		assert(relay->dpdk.rx_pkts_used <= BURST_LEN);
 
-	/* Update sent to VM stats. */
-	if (sent) {
-		unsigned bytes=0;
-		for (int i=0; i<sent; ++i)
-			bytes += pkts[i]->pkt_len;
-		relay->stats.vio_tx_bytes += bytes;
-		relay->stats.vio_tx += sent;
-	}
+		/* Update sent to VM stats. */
+		if (sent) {
+			unsigned bytes=0;
+			for (int i=0; i<sent; ++i)
+				bytes += pkts[i]->pkt_len;
+			relay->stats.vio_tx_bytes += bytes;
+			relay->stats.vio_tx += sent;
+		}
 
-	/* Free packets that have been enqueued. */
-	while (sent) {
-		--sent;
-		rte_pktmbuf_free(pkts[sent]);
+		/* Free packets that have been enqueued. */
+		while (sent) {
+			--sent;
+			rte_pktmbuf_free(pkts[sent]);
+		}
 	}
 
 	return sent;
