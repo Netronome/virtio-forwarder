@@ -44,7 +44,6 @@
 #include "rte_mbuf.h"
 #include "dpdk_eal.h"
 #include "rte_ethdev.h"
-#include "stats_dump.h"
 #include "cpuinfo.h"
 #include <stdbool.h>
 #include <pthread.h>
@@ -2068,41 +2067,6 @@ void virtio_forwarders_remove_all(void)
 		if (relay->dpdk.state == DPDK_READY ||
 				relay->dpdk.state == DPDK_ADDED)
 			virtio_forwarder_remove_vf(relay->dpdk.pci_dbdf, id);
-	}
-}
-
-void virtio_forwarders_print_stats(int ptmfd)
-{
-	for (unsigned id=0; id<MAX_RELAYS; ++id) {
-		if (virtio_vf_relays[id].vio.state != VIRTIO_READY &&
-				virtio_vf_relays[id].dpdk.state != DPDK_READY)
-			continue;
-
-		vio_vf_relay_t *relay = &virtio_vf_relays[id];
-		print_stat(ptmfd, "relay%u.virtio_rx=%"PRIu64"\n", id,
-			relay->stats.vio_rx);
-		print_stat(ptmfd, "relay%u.virtio_rx_bytes=%"PRIu64"\n",
-			id, relay->stats.vio_rx_bytes);
-		print_stat(ptmfd, "relay%u.dpdk_tx=%"PRIu64"\n", id,
-			relay->stats.dpdk_tx);
-		print_stat(ptmfd, "relay%u.dpdk_tx_bytes=%"PRIu64"\n", id,
-			relay->stats.dpdk_tx_bytes);
-		print_stat(ptmfd, "relay%u.dpdk_drop_full=%"PRIu64"\n", id,
-			relay->stats.dpdk_drop_full);
-		print_stat(ptmfd, "relay%u.dpdk_drop_unavail=%"PRIu64"\n", id,
-			relay->stats.dpdk_drop_unavail);
-		print_stat(ptmfd, "relay%u.dpdk_rx=%"PRIu64"\n", id,
-			relay->stats.dpdk_rx);
-		print_stat(ptmfd, "relay%u.dpdk_rx_bytes=%"PRIu64"\n", id,
-			relay->stats.dpdk_rx_bytes);
-		print_stat(ptmfd, "relay%u.virtio_tx=%"PRIu64"\n", id,
-			relay->stats.vio_tx);
-		print_stat(ptmfd, "relay%u.virtio_tx_bytes=%"PRIu64"\n", id,
-			relay->stats.vio_tx_bytes);
-		print_stat(ptmfd, "relay%u.virtio_drop_full=%"PRIu64"\n", id,
-			relay->stats.vio_drop_full);
-		print_stat(ptmfd, "relay%u.virtio_drop_unavail=%"PRIu64"\n", id,
-			relay->stats.vio_drop_unavail);
 	}
 }
 

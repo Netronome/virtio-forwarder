@@ -38,7 +38,6 @@
 #include "dpdk_eal.h"
 #include "ovsdb_mon.h"
 #include "file_mon.h"
-#include "stats_dump.h"
 #include "vrelay_version.h"
 #include "zmq_config.h"
 #include "zmq_port_control.h"
@@ -810,10 +809,6 @@ int main(int argc, char *argv[])
 			exit(-1);
 		}
 	}
-	if (stats_dump_start() != 0) {
-		log_critical("Error with stats dump thread initialization!");
-		exit(-1);
-	}
 
 	/* Start the VF addition/removal service. */
 	if (use_zmq_port_control) {
@@ -897,8 +892,6 @@ int main(int argc, char *argv[])
 			stats_shutdown_rc = zmq_server_stop(stats_server);
 			stats_server = NULL;
 		}
-	} else {
-		stats_dump_stop();
 	}
 
 	/* Stop the config service. */

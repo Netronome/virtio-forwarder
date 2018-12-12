@@ -69,7 +69,6 @@ SRCS-y := \
     log.c \
     ovsdb_mon.c \
     sriov.c \
-    stats_dump.c \
     ugid.c \
     virtio_forwarder_main.c \
     virtio_vhostuser.c \
