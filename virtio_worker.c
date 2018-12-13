@@ -359,7 +359,9 @@ static void get_tx_conf(const struct rte_eth_dev_info *dev_info,
 				DEV_TX_OFFLOAD_TCP_TSO;
 	tx_conf->offloads = dev_info->tx_offload_capa & desired_offloads;
 #endif
+#if RTE_VERSION < RTE_VERSION_NUM(18,8,0,0)
 	tx_conf->txq_flags &= ~ETH_TXQ_FLAGS_NOOFFLOADS;
+#endif
 }
 
 static void get_rx_conf(const struct rte_eth_dev_info *dev_info,
@@ -378,13 +380,21 @@ static void get_rx_conf(const struct rte_eth_dev_info *dev_info,
 static int cleanup_eth_dev(dpdk_port_t port_id)
 {
 	int err;
-	char detach_dbdf[RTE_ETH_NAME_MAX_LEN];
 
 	rte_eth_dev_stop(port_id);
 	rte_eth_dev_close(port_id);
+#if RTE_VERSION >= RTE_VERSION_NUM(18,11,0,0)
+	const char rte_detach_api[] = "rte_dev_remove";
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
+	err = rte_dev_remove(dev_info.device);
+#else
+	const char rte_detach_api[] = "rte_eth_dev_detach";
+	char detach_dbdf[RTE_ETH_NAME_MAX_LEN];
 	err = rte_eth_dev_detach(port_id, detach_dbdf);
+#endif
 	if (err != 0) {
-		log_warning("rte_eth_dev_detach(%hhu) failed with error %i",
+		log_warning("%s(%hhu) failed with error %i", rte_detach_api,
 			port_id, err);
 	}
 
@@ -514,8 +524,16 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 	log_info("Adding DPDK port %hhu ('%s') to virtio ('%u')",
 		port_id, name, virtio_id);
 
+#if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
+	rte_eth_dev_info_get(port_id, &dev_info);
+	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_JUMBO_FRAME)
+		eth_conf.rxmode.offloads |= DEV_RX_OFFLOAD_JUMBO_FRAME;
+	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_CHECKSUM)
+		eth_conf.rxmode.offloads |= DEV_RX_OFFLOAD_CHECKSUM;
+#else
 	eth_conf.rxmode.jumbo_frame = 1;
 	eth_conf.rxmode.hw_ip_checksum = 1;
+#endif
 	eth_conf.rxmode.max_rx_pkt_len = relay->use_jumbo ? JUMBO_MBUF_SIZE :
 						DEFAULT_MBUF_SIZE;
 	err = rte_eth_dev_configure(port_id, 1, 1, &eth_conf);
@@ -581,23 +599,41 @@ static int init_vf(const char *pci_dbdf, dpdk_port_t *port_id,
 {
 	int err;
 
+#if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
+	const char rte_attach_api[] = "rte_dev_probe";
+	err = rte_dev_probe(pci_dbdf);
+#else
+	const char rte_attach_api[] = "rte_eth_dev_attach";
 	err = rte_eth_dev_attach(pci_dbdf, port_id);
+#endif
 	if (err != 0) {
 		/* err is always -1 on error, so no useful additional info.
 		 * Print it anyway for consistency with other error messages. */
-		log_error("rte_eth_dev_attach('%s') failed with error %i",
+		log_error("%s('%s') failed with error %i", rte_attach_api,
 			pci_dbdf, err);
 		check_uio_driver_setup(pci_dbdf);
 		return 2;
 	}
 
+#if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
+	struct rte_dev_iterator it;
+	RTE_ETH_FOREACH_MATCHING_DEV(*port_id, pci_dbdf, &it) {
+#endif
 	err = dev_queue_configure(pci_dbdf, *port_id, virtio_id, relay, false);
 	if (err) {
+		// TODO: should probably accumulate the port_id and clean them all up
+		// but it's unlikely that there would be more than one match anyway
+#if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
+		rte_eth_iterator_cleanup(&it);
+#endif
 		cleanup_eth_dev(*port_id);
 		return err;
 	}
 
 	rte_eth_promiscuous_enable(*port_id);
+#if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
+	}
+#endif
 
 	return 0;
 }
