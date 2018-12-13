@@ -185,7 +185,7 @@ vio_install: vio_installdirs
 	find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec $(INSTALL_PROGRAM) {} $(DESTDIR)$(libexecdir) \;
 	find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)$(libexecdir)/$$(basename {})' \;
 	$(INSTALL_DATA) $(RTE_SRCDIR)/startup/virtioforwarder $(DESTDIR)/etc/default
-	sed -ri "s#__BINDIR__#$(bindir)#" $(DESTDIR)/etc/default/virtioforwarder
+	sed -ri "s#@BINDIR@#$(bindir)#" $(DESTDIR)/etc/default/virtioforwarder
 	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec $(INSTALL_DATA) {} $(DESTDIR)$(unitdir) \;
 	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)$(unitdir)/$$(basename {})' \;
 	@if [ "$(VIO4WD_SHIP_UPSTART)" = "y" ]; then \
