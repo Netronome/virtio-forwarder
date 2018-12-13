@@ -267,8 +267,8 @@ prepare_docs: version
 	cp $${RTE_SRCDIR:+$$RTE_SRCDIR/}doc/* _build/
 	cd _build; \
 	VERSION_VER_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/SHASH/{count++; if (count<4) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
-	sed -ri "s/__VRELAY_VERSION__/$$VERSION_VER_STRING/" conf.py; \
-	sed -ri "s/__APP__NAME__/$(APP)/" conf.py
+	sed -ri "s/@VRELAY_VERSION@/$$VERSION_VER_STRING/" conf.py; \
+	sed -ri "s/@APP__NAME@/$(APP)/" conf.py
 
 doc: prepare_docs
 	cd _build; \

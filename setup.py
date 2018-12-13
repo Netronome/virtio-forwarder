@@ -27,8 +27,8 @@ with open ('./doc/conf.py', 'r') as f:
 lines_new = []
 for line in lines:
     tmp = line
-    tmp = re.sub('__VRELAY_VERSION__', ver_string, tmp)
-    tmp = re.sub('__APP__NAME__', 'virtio-forwarder', tmp)
+    tmp = re.sub('@VRELAY_VERSION@', ver_string, tmp)
+    tmp = re.sub('@APP__NAME@', 'virtio-forwarder', tmp)
     lines_new.append(tmp)
 
 with open ('./doc/conf.py', 'w') as f:
