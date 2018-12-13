@@ -161,11 +161,11 @@ protobuf/virtioforwarder/virtioforwarder_pb2.py: virtioforwarder.proto
 version:
 	@(git log>/dev/null 2>&1 && \
 	cp $${RTE_SRCDIR:+$$RTE_SRCDIR/}vrelay_version.h.in vrelay_version.h 2>/dev/null && \
-	sed -ri "s/(.*VIRTIO_FWD_VERSION_MAJOR)\s+[0-9]+/\1 $(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\1/')/" vrelay_version.h && \
-	sed -ri "s/(.*VIRTIO_FWD_VERSION_MINOR)\s+[0-9]+/\1 $(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\2/')/" vrelay_version.h && \
-	sed -ri "s/(.*VIRTIO_FWD_VERSION_PATCH)\s+[0-9]+/\1 $(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\3/')/" vrelay_version.h && \
-	sed -ri "s/(.*VIRTIO_FWD_VERSION_BUILD)\s+[0-9]+/\1 $(shell git describe --tags --long | sed -r 's/(.*)?\-([0-9]+)\-.*/\2/')/" vrelay_version.h && \
-	sed -ri "s/(.*VIRTIO_FWD_VERSION_SHASH)\s+\"[[:alnum:]]*/\1 \"$(shell git describe --tags --long | sed -r 's/(.*)?\-([0-9]+)\-(.*)/\3/')/" vrelay_version.h) || \
+	sed -ri "s/@MAJOR@/$(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\1/')/" vrelay_version.h && \
+	sed -ri "s/@MINOR@/$(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\2/')/" vrelay_version.h && \
+	sed -ri "s/@PATCH@/$(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\3/')/" vrelay_version.h && \
+	sed -ri "s/@BUILD@/$(shell git describe --tags --long | sed -r 's/(.*)?\-([0-9]+)\-.*/\2/')/" vrelay_version.h && \
+	sed -ri "s/@SHASH@/$(shell git describe --tags --long | sed -r 's/(.*)?\-([0-9]+)\-(.*)/\3/')/" vrelay_version.h) || \
 	cp $${RTE_SRCDIR:+$$RTE_SRCDIR/}vrelay_version.h . || :
 
 vio_installdirs:
