@@ -33,10 +33,10 @@
 . /etc/default/virtioforwarder || { stop; exit 1; }
 
 # Create the dir with the ZMQ endpoints.
-__LIBEXECDIR__/create_zmq_dir.py $VIRTIOFWD_ZMQ_CORE_SCHED_EP
-__LIBEXECDIR__/create_zmq_dir.py $VIRTIOFWD_ZMQ_STATS_EP
-__LIBEXECDIR__/create_zmq_dir.py $VIRTIOFWD_ZMQ_PORT_CONTROL_EP
-__LIBEXECDIR__/create_zmq_dir.py $VIRTIOFWD_ZMQ_CONFIG_EP
+@LIBEXECDIR@/create_zmq_dir.py $VIRTIOFWD_ZMQ_CORE_SCHED_EP
+@LIBEXECDIR@/create_zmq_dir.py $VIRTIOFWD_ZMQ_STATS_EP
+@LIBEXECDIR@/create_zmq_dir.py $VIRTIOFWD_ZMQ_PORT_CONTROL_EP
+@LIBEXECDIR@/create_zmq_dir.py $VIRTIOFWD_ZMQ_CONFIG_EP
 
 # Set up the socket dir permissions.
 mkdir -vp "$VIRTIOFWD_SOCKET_DIR" || { stop; exit 1; }

@@ -183,14 +183,14 @@ vio_install: vio_installdirs
 	$(INSTALL_DATA) $(RTE_OUTPUT)/_build/$(APP).8 $(DESTDIR)$(mandir)
 	find $(RTE_SRCDIR)/scripts/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.py' -exec $(INSTALL_PROGRAM) {} $(DESTDIR)$(libexecdir) \;
 	find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec $(INSTALL_PROGRAM) {} $(DESTDIR)$(libexecdir) \;
-	find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)$(libexecdir)/$$(basename {})' \;
+	find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec sh -c 'sed -ri "s#@LIBEXECDIR@#$(libexecdir)#" $(DESTDIR)$(libexecdir)/$$(basename {})' \;
 	$(INSTALL_DATA) $(RTE_SRCDIR)/startup/virtioforwarder $(DESTDIR)/etc/default
 	sed -ri "s#@BINDIR@#$(bindir)#" $(DESTDIR)/etc/default/virtioforwarder
 	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec $(INSTALL_DATA) {} $(DESTDIR)$(unitdir) \;
-	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)$(unitdir)/$$(basename {})' \;
+	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'sed -ri "s#@LIBEXECDIR@#$(libexecdir)#" $(DESTDIR)$(unitdir)/$$(basename {})' \;
 	@if [ "$(VIO4WD_SHIP_UPSTART)" = "y" ]; then \
 		find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec $(INSTALL_DATA) {} $(DESTDIR)/etc/init \;; \
-		find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)/etc/init/$$(basename {})' \;; \
+		find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'sed -ri "s#@LIBEXECDIR@#$(libexecdir)#" $(DESTDIR)/etc/init/$$(basename {})' \;; \
 	fi
 	cd $(RTE_OUTPUT); \
 	find ./protobuf/ -type f -regextype posix-extended -regex '.*\.py' -exec $(INSTALL_DATA) -D {} $(DESTDIR)$(libexecdir)/{} \;
