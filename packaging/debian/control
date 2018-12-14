@@ -1,7 +1,7 @@
 Source: virtio-forwarder
 Maintainer: Frik Botha <frik.botha@netronome.com>
 Section: net
-Build-Depends: debhelper (>= 9), python-minimal, protobuf-c-compiler, libprotobuf-c0-dev, libzmq3-dev, protobuf-compiler, python3-sphinx, libnuma-dev, libdpdk-dev, dpdk-dev, libpcap-dev, libxen-dev
+Build-Depends: debhelper (>= 11~), python-minimal, protobuf-c-compiler, libprotobuf-c0-dev, libzmq3-dev, protobuf-compiler, python3-sphinx, libnuma-dev, libdpdk-dev, dpdk-dev, libpcap-dev, libxen-dev, meson (>= 0.47~), pkg-config, systemd
 Standards-Version: 4.1.4
 Homepage: https://github.com/Netronome/virtio-forwarder
 Priority: optional
