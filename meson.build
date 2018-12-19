@@ -28,7 +28,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 project('virtio-forwarder', 'C',
-	version: '1.1.99',
+	version: run_command(['git', 'describe', '--tags', '--long']).stdout().strip(),
 	license: 'BSD',
 	default_options: ['buildtype=release'],
 	meson_version: '>= 0.47'
@@ -75,9 +75,9 @@ generated_c = pb_c.process('virtioforwarder.proto')
 vrelay_version = configuration_data()
 vrelay_version.set('MAJOR', '@0@'.format(meson.project_version().split('.').get(0)))
 vrelay_version.set('MINOR', '@0@'.format(meson.project_version().split('.').get(1)))
-vrelay_version.set('PATCH', '@0@'.format(meson.project_version().split('.').get(2)))
-#vrelay_version.set('BUILD', '@0@'.format(meson.project_version().split('.').get(3)))
-#vrelay_version.set('SHASH', '@0@'.format(meson.project_version().split('.').get(4)))
+vrelay_version.set('PATCH', '@0@'.format(meson.project_version().split('.').get(2).split('-').get(0)))
+vrelay_version.set('BUILD', '@0@'.format(meson.project_version().split('-').get(-2)))
+vrelay_version.set('SHASH', '@0@'.format(meson.project_version().split('-').get(-1)))
 vrelay = configure_file(input: 'vrelay_version.h.in',
 	output: 'vrelay_version.h',
 	configuration: vrelay_version,

@@ -161,6 +161,8 @@ protobuf/virtioforwarder/virtioforwarder_pb2.py: virtioforwarder.proto
 version:
 	@(git log>/dev/null 2>&1 && \
 	cp $${RTE_SRCDIR:+$$RTE_SRCDIR/}vrelay_version.h.in vrelay_version.h 2>/dev/null && \
+	cp $${RTE_SRCDIR:+$$RTE_SRCDIR/}meson.build meson.build.out 2>/dev/null && \
+	sed -ri "s/^(\s*version: )run_command.*$$/\1\'$(shell git describe --tags --long)\',/" meson.build.out && \
 	sed -ri "s/@MAJOR@/$(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\1/')/" vrelay_version.h && \
 	sed -ri "s/@MINOR@/$(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\2/')/" vrelay_version.h && \
 	sed -ri "s/@PATCH@/$(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\3/')/" vrelay_version.h && \
@@ -220,6 +222,8 @@ deb: version
 	fi
 	@cp -r doc/ _build/virtio-forwarder/
 	@cp vrelay_version.h.in _build/virtio-forwarder/
+	@find . -type f -name "meson.build" -exec cp --parents {} _build/virtio-forwarder/ \;
+	@cp meson.build.out _build/virtio-forwarder/meson.build
 	@find startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec cp --parents {} _build/virtio-forwarder/ \;
 	cd _build; \
 	VERSION_VER_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/SHASH/{count++; if (count<4) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
