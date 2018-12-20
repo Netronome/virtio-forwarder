@@ -49,9 +49,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 #include <unistd.h>
 #include <zmq.h>
+#include <poll.h>
 
 #define __MODULE__ "zmq_server"
 #include "log.h"
@@ -456,25 +456,21 @@ static bool
 wait_for_thread_ready(
 	int fd, char const *fd_description, char const *service_name)
 {
-	static const time_t READY_TIMEOUT_SEC = 2;
-	struct timeval tv = { .tv_sec = READY_TIMEOUT_SEC, .tv_usec = 0 };
+	static const time_t READY_TIMEOUT_MSEC = 2000;
+	struct pollfd fds;
 
-	assert(fd < FD_SETSIZE);
-
-	fd_set fds;
-	FD_ZERO(&fds);
-	FD_SET(fd, &fds);
-
+	fds.fd = fd;
+	fds.events = POLLIN;
 	for (;;) {
-		int rc = select(fd + 1, &fds, NULL, NULL, &tv);
+		int rc = poll(&fds, 1, READY_TIMEOUT_MSEC);
 		if (rc == -1) {
 			char err[ERRNO_BUFFER_SIZE];
 			if (errno == EINTR) {
-				log_warning("select(%s): EINTR", fd_description);
+				log_warning("poll(%s): EINTR", fd_description);
 				continue;
 			}
 			log_critical(
-				"select(%s): %s", fd_description, errno_str(err, sizeof err)
+				"poll(%s): %s", fd_description, errno_str(err, sizeof err)
 			);
 			return false;
 		}
@@ -503,8 +499,8 @@ wait_for_thread_ready(
 
 error_exit:
 	log_error(
-		"%s thread failed to mark itself ready within %i seconds",
-		service_name, (int) READY_TIMEOUT_SEC
+		"%s thread failed to mark itself ready within %i ms",
+		service_name, (int) READY_TIMEOUT_MSEC
 	);
 	return false;
 }
