@@ -83,7 +83,7 @@ author = u'Bert van Leeuwen, Frik Botha'
 # built documents.
 #
 # The short X.Y version.
-version = u'__VRELAY_VERSION__'
+version = u'@VRELAY_VERSION@'
 # The full version, including alpha/beta/rc tags.
 release = version
 
@@ -213,7 +213,7 @@ latex_toplevel_sectioning = 'section'
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, '__APP__NAME__', u'Virtio-forwarder Documentation',
+    (master_doc, '@APP__NAME@', u'Virtio-forwarder Documentation',
      [author], 8)
 ]
 

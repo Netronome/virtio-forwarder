@@ -119,7 +119,7 @@ VIRTIOFWD_SOCKET_DIR=/tmp/virtio-forwarder
 VIRTIOFWD_SOCKET_FNAME_PATTERN=
 
 # Path to virtio-forwarder binary (debugging knob).
-VIRTIOFWD_BINARY=__BINDIR__/virtio-forwarder
+VIRTIOFWD_BINARY=@BINDIR@/virtio-forwarder
 
 # CPU to use as the master lcore. Blank defaults to CPU0
 VIRTIOFWD_MASTER_LCORE=

@@ -4,15 +4,8 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-DEB_HOST_GNU_CPU ?= $(shell dpkg-architecture -qDEB_HOST_GNU_CPU)
+DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/default.mk
 
 %:
-	ARCH=$(DEB_HOST_GNU_CPU) dh $@
-
-override_dh_auto_install:
-	$(MAKE) DESTDIR=$$(pwd)/debian/virtio-forwarder prefix=/usr \
-	unitdir=/lib/systemd/system ARCH=$(DEB_HOST_GNU_CPU) install
-
-override_dh_auto_clean:
-	$(MAKE) DESTDIR=$$(pwd)/debian/virtio-forwarder \
-	ARCH=$(DEB_HOST_GNU_CPU) clean
+	dh $@ --buildsystem=meson

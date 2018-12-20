@@ -161,11 +161,13 @@ protobuf/virtioforwarder/virtioforwarder_pb2.py: virtioforwarder.proto
 version:
 	@(git log>/dev/null 2>&1 && \
 	cp $${RTE_SRCDIR:+$$RTE_SRCDIR/}vrelay_version.h.in vrelay_version.h 2>/dev/null && \
-	sed -ri "s/(.*VIRTIO_FWD_VERSION_MAJOR)\s+[0-9]+/\1 $(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\1/')/" vrelay_version.h && \
-	sed -ri "s/(.*VIRTIO_FWD_VERSION_MINOR)\s+[0-9]+/\1 $(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\2/')/" vrelay_version.h && \
-	sed -ri "s/(.*VIRTIO_FWD_VERSION_PATCH)\s+[0-9]+/\1 $(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\3/')/" vrelay_version.h && \
-	sed -ri "s/(.*VIRTIO_FWD_VERSION_BUILD)\s+[0-9]+/\1 $(shell git describe --tags --long | sed -r 's/(.*)?\-([0-9]+)\-.*/\2/')/" vrelay_version.h && \
-	sed -ri "s/(.*VIRTIO_FWD_VERSION_SHASH)\s+\"[[:alnum:]]*/\1 \"$(shell git describe --tags --long | sed -r 's/(.*)?\-([0-9]+)\-(.*)/\3/')/" vrelay_version.h) || \
+	cp $${RTE_SRCDIR:+$$RTE_SRCDIR/}meson.build meson.build.out 2>/dev/null && \
+	sed -ri "s/^(\s*version: )run_command.*$$/\1\'$(shell git describe --tags --long)\',/" meson.build.out && \
+	sed -ri "s/@MAJOR@/$(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\1/')/" vrelay_version.h && \
+	sed -ri "s/@MINOR@/$(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\2/')/" vrelay_version.h && \
+	sed -ri "s/@PATCH@/$(shell git describe --tags --long | sed -r 's/([0-9]+)\.([0-9]+)\.([0-9]+)\-.*/\3/')/" vrelay_version.h && \
+	sed -ri "s/@BUILD@/$(shell git describe --tags --long | sed -r 's/(.*)?\-([0-9]+)\-.*/\2/')/" vrelay_version.h && \
+	sed -ri "s/@SHASH@/$(shell git describe --tags --long | sed -r 's/(.*)?\-([0-9]+)\-(.*)/\3/')/" vrelay_version.h) || \
 	cp $${RTE_SRCDIR:+$$RTE_SRCDIR/}vrelay_version.h . || :
 
 vio_installdirs:
@@ -183,14 +185,14 @@ vio_install: vio_installdirs
 	$(INSTALL_DATA) $(RTE_OUTPUT)/_build/$(APP).8 $(DESTDIR)$(mandir)
 	find $(RTE_SRCDIR)/scripts/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.py' -exec $(INSTALL_PROGRAM) {} $(DESTDIR)$(libexecdir) \;
 	find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec $(INSTALL_PROGRAM) {} $(DESTDIR)$(libexecdir) \;
-	find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)$(libexecdir)/$$(basename {})' \;
+	find $(RTE_SRCDIR)/startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec sh -c 'sed -ri "s#@LIBEXECDIR@#$(libexecdir)#" $(DESTDIR)$(libexecdir)/$$(basename {})' \;
 	$(INSTALL_DATA) $(RTE_SRCDIR)/startup/virtioforwarder $(DESTDIR)/etc/default
-	sed -ri "s#__BINDIR__#$(bindir)#" $(DESTDIR)/etc/default/virtioforwarder
+	sed -ri "s#@BINDIR@#$(bindir)#" $(DESTDIR)/etc/default/virtioforwarder
 	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec $(INSTALL_DATA) {} $(DESTDIR)$(unitdir) \;
-	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)$(unitdir)/$$(basename {})' \;
+	find $(RTE_SRCDIR)/startup/systemd -maxdepth 1 -type f -regextype posix-extended -regex '.*\.service' -exec sh -c 'sed -ri "s#@LIBEXECDIR@#$(libexecdir)#" $(DESTDIR)$(unitdir)/$$(basename {})' \;
 	@if [ "$(VIO4WD_SHIP_UPSTART)" = "y" ]; then \
 		find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec $(INSTALL_DATA) {} $(DESTDIR)/etc/init \;; \
-		find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'sed -ri "s#__LIBEXECDIR__#$(libexecdir)#" $(DESTDIR)/etc/init/$$(basename {})' \;; \
+		find $(RTE_SRCDIR)/startup/upstart -maxdepth 1 -type f -regextype posix-extended -regex '.*\.conf' -exec sh -c 'sed -ri "s#@LIBEXECDIR@#$(libexecdir)#" $(DESTDIR)/etc/init/$$(basename {})' \;; \
 	fi
 	cd $(RTE_OUTPUT); \
 	find ./protobuf/ -type f -regextype posix-extended -regex '.*\.py' -exec $(INSTALL_DATA) -D {} $(DESTDIR)$(libexecdir)/{} \;
@@ -220,6 +222,8 @@ deb: version
 	fi
 	@cp -r doc/ _build/virtio-forwarder/
 	@cp vrelay_version.h.in _build/virtio-forwarder/
+	@find . -type f -name "meson.build" -exec cp --parents {} _build/virtio-forwarder/ \;
+	@cp meson.build.out _build/virtio-forwarder/meson.build
 	@find startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec cp --parents {} _build/virtio-forwarder/ \;
 	cd _build; \
 	VERSION_VER_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/SHASH/{count++; if (count<4) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
@@ -267,8 +271,8 @@ prepare_docs: version
 	cp $${RTE_SRCDIR:+$$RTE_SRCDIR/}doc/* _build/
 	cd _build; \
 	VERSION_VER_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/SHASH/{count++; if (count<4) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
-	sed -ri "s/__VRELAY_VERSION__/$$VERSION_VER_STRING/" conf.py; \
-	sed -ri "s/__APP__NAME__/$(APP)/" conf.py
+	sed -ri "s/@VRELAY_VERSION@/$$VERSION_VER_STRING/" conf.py; \
+	sed -ri "s/@APP__NAME@/$(APP)/" conf.py
 
 doc: prepare_docs
 	cd _build; \

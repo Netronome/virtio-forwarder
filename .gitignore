@@ -4,6 +4,7 @@ _build
 *.swp
 .testrepository
 vrelay_version.h
+meson.build.out
 rpmbuild
 doc/_build
 cscope.out
