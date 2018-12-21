@@ -635,8 +635,6 @@ static int init_vf(const char *pci_dbdf, dpdk_port_t *port_id,
 #endif
 	err = dev_queue_configure(pci_dbdf, *port_id, virtio_id, relay, false);
 	if (err) {
-		// TODO: should probably accumulate the port_id and clean them all up
-		// but it's unlikely that there would be more than one match anyway
 #if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
 		rte_eth_iterator_cleanup(&it);
 #endif
@@ -646,6 +644,9 @@ static int init_vf(const char *pci_dbdf, dpdk_port_t *port_id,
 
 	rte_eth_promiscuous_enable(*port_id);
 #if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
+	/* Enforce a single match - there should only be one. */
+	rte_eth_iterator_cleanup(&it);
+	break;
 	}
 #endif
 
