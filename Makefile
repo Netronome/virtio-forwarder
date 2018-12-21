@@ -221,7 +221,7 @@ deb: version
 	fi
 	@cp -r doc/ _build/virtio-forwarder/
 	@cp vrelay_version.h.in _build/virtio-forwarder/
-	@find . -type f -name "meson.build" -exec cp --parents {} _build/virtio-forwarder/ \;
+	@find . -not -path "./_build/*" -type f -name "meson.build" -exec cp --parents {} _build/virtio-forwarder/ \;
 	@cp meson.build.out _build/virtio-forwarder/meson.build
 	@find startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec cp --parents {} _build/virtio-forwarder/ \;
 	cd _build; \
