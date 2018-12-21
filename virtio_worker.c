@@ -354,8 +354,10 @@ static void get_tx_conf(const struct rte_eth_dev_info *dev_info,
 	uint64_t desired_offloads;
 	desired_offloads = DEV_TX_OFFLOAD_IPV4_CKSUM |
 				DEV_TX_OFFLOAD_UDP_CKSUM |
-				DEV_TX_OFFLOAD_TCP_CKSUM |
-				DEV_TX_OFFLOAD_TCP_TSO;
+				DEV_TX_OFFLOAD_TCP_CKSUM;
+	if (g_vio_worker_conf.enable_tso)
+		desired_offloads |= (DEV_TX_OFFLOAD_TCP_TSO |
+					DEV_TX_OFFLOAD_UDP_TSO);
 	tx_conf->offloads = dev_info->tx_offload_capa & desired_offloads;
 #endif
 #if RTE_VERSION < RTE_VERSION_NUM(18,8,0,0)
@@ -523,12 +525,25 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 	log_info("Adding DPDK port %hhu ('%s') to virtio ('%u')",
 		port_id, name, virtio_id);
 
+	/* Configure per-port offloads. */
 #if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
 	rte_eth_dev_info_get(port_id, &dev_info);
 	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_JUMBO_FRAME)
 		eth_conf.rxmode.offloads |= DEV_RX_OFFLOAD_JUMBO_FRAME;
 	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_CHECKSUM)
 		eth_conf.rxmode.offloads |= DEV_RX_OFFLOAD_CHECKSUM;
+	if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_IPV4_CKSUM)
+		eth_conf.txmode.offloads |= DEV_TX_OFFLOAD_IPV4_CKSUM;
+	if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_UDP_CKSUM)
+		eth_conf.txmode.offloads |= DEV_TX_OFFLOAD_UDP_CKSUM;
+	if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_TCP_CKSUM)
+		eth_conf.txmode.offloads |= DEV_TX_OFFLOAD_TCP_CKSUM;
+	if (g_vio_worker_conf.enable_tso) {
+		if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_TCP_TSO)
+			eth_conf.txmode.offloads |= DEV_TX_OFFLOAD_TCP_TSO;
+		if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_UDP_TSO)
+			eth_conf.txmode.offloads |= DEV_TX_OFFLOAD_UDP_TSO;
+	}
 #else
 	eth_conf.rxmode.jumbo_frame = 1;
 	eth_conf.rxmode.hw_ip_checksum = 1;
