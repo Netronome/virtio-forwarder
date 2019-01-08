@@ -1,3 +1,0 @@
-virtio-forwarder (__VRELAY_VERSION__-__PKG_RELEASE__~__DEBIAN_DIST__) __DEBIAN_DIST__; urgency=low
-  *  Initial release
- -- Frik Botha <frik.botha@netronome.com>  __DATE__

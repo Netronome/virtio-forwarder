@@ -59,6 +59,11 @@ APP = virtio-forwarder
 DEBIAN_DISTRO ?= unstable
 PKG_RELEASE = 1
 
+# Path and branch of distribution repo. Note, the distro tag should dictate the
+# branch specified here.
+DIST_REPO_URL ?= https://github.com/Netronome/virtio-forwarder-dist
+DIST_REPO_BRANCH ?= master
+
 # all source are stored in SRCS-y
 SRCS-y := \
     argv.c \
@@ -228,7 +233,8 @@ deb: version
 	VERSION_VER_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/SHASH/{count++; if (count<4) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
 	mv virtio-forwarder/ virtio-forwarder-$$VERSION_VER_STRING; \
 	tar cfjp virtio-forwarder_$${VERSION_VER_STRING}.orig.tar.bz2 virtio-forwarder-$$VERSION_VER_STRING/; \
-	cp -r ../packaging/debian virtio-forwarder-$$VERSION_VER_STRING/; \
+	git clone -b $(DIST_REPO_BRANCH) $(DIST_REPO_URL) packaging; \
+	cp -r ./packaging/debian virtio-forwarder-$$VERSION_VER_STRING/; \
 	sed -ri "s/__VRELAY_VERSION__/$$VERSION_VER_STRING/" virtio-forwarder-$$VERSION_VER_STRING/debian/changelog; \
 	sed -ri "s/__PKG_RELEASE__/$(PKG_RELEASE)/" virtio-forwarder-$$VERSION_VER_STRING/debian/changelog; \
 	cd virtio-forwarder-$$VERSION_VER_STRING/; \
@@ -254,7 +260,8 @@ rpm: version
 	@find startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec cp --parents {} _build/virtio-forwarder/ \;
 	cd _build; \
 	VERSION_VER_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/SHASH/{count++; if (count<4) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
-	cp ../packaging/virtio-forwarder.spec.in ../rpmbuild/SPECS/virtio-forwarder.spec; \
+	git clone -b $(DIST_REPO_BRANCH) $(DIST_REPO_URL) packaging; \
+	cp ./packaging/virtio-forwarder.spec.in ../rpmbuild/SPECS/virtio-forwarder.spec; \
 	sed -ri "s/__VRELAY_VERSION__/$$VERSION_VER_STRING/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
 	sed -ri "s/__PKG_RELEASE__/$(PKG_RELEASE)/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
 	DATE_STR="$(shell date +'%a %b %d %Y')"; \
