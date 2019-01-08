@@ -268,8 +268,7 @@ rpm: version
 	mv virtio-forwarder/ virtio-forwarder-$$VERSION_VER_STRING; \
 	tar cfjp ../rpmbuild/SOURCES/virtio-forwarder-$$VERSION_VER_STRING-$(PKG_RELEASE).tar.bz2 virtio-forwarder-$$VERSION_VER_STRING/; \
 	rpmbuild -$${RPMBUILD_FLAGS:-ba} -D "_topdir $(shell pwd)/rpmbuild/" ../rpmbuild/SPECS/virtio-forwarder.spec; \
-	if [ -z $${RPMBUILD_FLAGS:+x} ]; then cp ../rpmbuild/RPMS/x86_64/virtio-forwarder*-$$VERSION_VER_STRING-$(PKG_RELEASE)*.rpm $${RPM_OUTDIR:-.}; fi; \
-	cp ../rpmbuild/SRPMS/virtio-forwarder-$$VERSION_VER_STRING-$(PKG_RELEASE)*src.rpm $${RPM_OUTDIR:-.}
+	find ../rpmbuild/ -name "*.rpm" -exec cp {} $${RPM_OUTDIR:-.} \;
 
 prepare_docs: version
 	@rm -fr _build; mkdir -p _build/
