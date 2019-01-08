@@ -256,7 +256,6 @@ rpm: version
 	@cp --parents startup/virtioforwarder _build/virtio-forwarder/
 	@cp --parents startup/systemd/*.service _build/virtio-forwarder/
 	@cp -r doc/ _build/virtio-forwarder/
-	@cp vrelay_version.h.in _build/virtio-forwarder/
 	@find startup/ -maxdepth 1 -type f -regextype posix-extended -regex '.*\.sh' -exec cp --parents {} _build/virtio-forwarder/ \;
 	cd _build; \
 	VERSION_VER_STRING="$(shell awk '/VIRTIO_FWD_VERSION/&&/define/&&!/SHASH/{count++; if (count<4) printf "%s.", $$3; else print $$3}' vrelay_version.h)"; \
