@@ -46,7 +46,13 @@ The following could be done after each boot:
 Note that reserving hugepages after boot may fail if not enough contiguous free
 memory is available, and it is therefore recommended to reserve them at boot
 time with Linux kernel command line parameters. This is especially true for 1G
-hugepages.
+hugepages. When a large number of 2M pages are used, ensure that they do not
+exceed the kernel's maximum number of memory map areas. ``max_map_count`` should
+be set to at least twice the number of hugepages:
+
+.. code:: bash
+
+	echo $num > /proc/sys/vm/max_map_count	# $num > 2 * nr_hugepages
 
 hugetlbfs needs to be mounted on the filesystem to allow applications to create
 and allocate handles to the mapped memory. The following lines mount the two
