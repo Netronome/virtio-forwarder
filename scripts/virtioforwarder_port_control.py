@@ -31,6 +31,8 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from __future__ import print_function
+
 import argparse
 import zmq
 import re
@@ -43,15 +45,18 @@ except ImportError:
     sys.path.append(PWD + '/../build/protobuf/virtioforwarder')
     import virtioforwarder_pb2 as relay
 
+
 def _syntax():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        'op', metavar='OP', choices=('add', 'remove', 'add_sock', 'remove_sock'),
+        'op', metavar='OP',
+        choices=('add', 'remove', 'add_sock', 'remove_sock'),
         help='port control operation',
     )
     parser.add_argument(
         '--vhost-path', type=str,
-        help='Path to vhostuser socket. Use this option with the add/remove-sock operations'
+        help='Path to vhostuser socket.'
+             ' Use this option with the add/remove-sock operations'
     )
     parser.add_argument(
         '--virtio-id', metavar='virtio-id', type=int,
@@ -70,7 +75,8 @@ def _syntax():
     )
     parser.add_argument(
         '--mode', choices=(0, 1, 2, 3, 4, 5, 6), type=int, default=1,
-        help='Bond mode: 0=ROUND_ROBIN; 1=ACTIVE_BACKUP; 2=BALANCE; 3=BROADCAST; 4=8023AD; 5=TLB; 6=ALB'
+        help='Bond mode: 0=ROUND_ROBIN; 1=ACTIVE_BACKUP; 2=BALANCE;'
+             ' 3=BROADCAST; 4=8023AD; 5=TLB; 6=ALB'
     )
     parser.add_argument('--zmq_ep', help='ZeroMQ port control endpoint')
     parser.add_argument(
@@ -82,6 +88,7 @@ def _syntax():
         help='send garbage instead of a real request',
     )
     return parser
+
 
 def parse_pci_addr(addr):
     """Parse PCI address into protobuf.
@@ -96,25 +103,26 @@ def parse_pci_addr(addr):
        PortControlRequest.PciAddress()
     """
     assert(type(addr) == str)
-    if re.search('[^\.:0-9a-fA-F]', addr):
-        return (None, 1) # Badly formatted address
+    if re.search(r'[^\.:0-9a-fA-F]', addr):
+        return (None, 1)  # Badly formatted address
 
     try:
-        dom, b, dev, f = [int(x, 16) for x in re.split('[:\.]', addr)]
+        dom, b, dev, f = [int(x, 16) for x in re.split(r'[:\.]', addr)]
     except ValueError:
         try:
             dom = 0
-            b, dev, f = [int(x, 16) for x in re.split('[:\.]', addr)]
+            b, dev, f = [int(x, 16) for x in re.split(r'[:\.]', addr)]
         except ValueError:
-            return (None, 1) # Badly formatted address
-        
+            return (None, 1)  # Badly formatted address
     return (relay.PortControlRequest.PciAddress(domain=dom, bus=b, slot=dev,
                                                 function=f), 0)
+
 
 def main():
     args = _syntax().parse_args()
 
-    port_control_ep = args.zmq_ep if args.zmq_ep else "ipc:///var/run/virtio-forwarder/port_control"
+    port_control_ep = (args.zmq_ep or
+                       "ipc:///var/run/virtio-forwarder/port_control")
     context = zmq.Context()
     socket = context.socket(zmq.REQ)
     socket.setsockopt(zmq.LINGER, 0)
@@ -131,7 +139,6 @@ def main():
         parsed_addr, ret = parse_pci_addr(addr)
         if ret == 0:
             # Address format is good
-            pb_pci_addr = relay.PortControlRequest.PciAddress()
             msg.pci_addrs.extend([parsed_addr])
     if args.conditional is not None:
         msg.conditional = args.conditional
@@ -152,7 +159,8 @@ def main():
     reply = relay.PortControlResponse()
     reply.ParseFromString(socket.recv())
     assert reply.IsInitialized()
-    print reply
+    print(reply)
+
 
 if __name__ == '__main__':
     main()
