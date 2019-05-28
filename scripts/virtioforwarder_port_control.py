@@ -137,9 +137,8 @@ def main():
         msg.virtio_id = int(args.virtio_id)
     for addr in args.pci_addr:
         parsed_addr, ret = parse_pci_addr(addr)
-        if ret == 0:
-            # Address format is good
-            msg.pci_addrs.extend([parsed_addr])
+        assert (ret == 0), 'Badly formatted PCI address'
+        msg.pci_addrs.extend([parsed_addr])
     if args.conditional is not None:
         msg.conditional = args.conditional
     if args.name is not None:
@@ -159,8 +158,11 @@ def main():
     reply = relay.PortControlResponse()
     reply.ParseFromString(socket.recv())
     assert reply.IsInitialized()
-    print(reply)
+    if reply.status != reply.OK:
+        print(reply)
+        return 1
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    exit(main())
