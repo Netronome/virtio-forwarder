@@ -141,6 +141,11 @@ The package install configures virtio-forwarder as a systemd/upstart service. Bo
 time startup can be configured using the appropriate initialization utility,
 e.g. ``systemctl enable virtio-forwarder``.
 
+.. note::
+
+	For RHEL/CentOS, the epel repo must be enabled to satisfy the required
+	dependencies.
+
 After installation, the software can be manually started using the following
 command:
 
