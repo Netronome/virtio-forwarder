@@ -1,0 +1,9 @@
+---
+- project:
+    name: xvio/virtio-forwarder
+    check:
+      jobs:
+        - noop
+    gate:
+      jobs:
+        - noop
