@@ -28,6 +28,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 scripts = files('create_zmq_dir.py',
+	'bind_uio_driver.py',
 	'parse_numa.py',
 	'virtioforwarder_config.py',
 	'virtioforwarder_core_pinner.py',

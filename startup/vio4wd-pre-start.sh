@@ -45,5 +45,8 @@ test -n "$VIRTIOFWD_SOCKET_OWNER" &&
 test -n "$VIRTIOFWD_SOCKET_GROUP" &&
     chgrp "$VIRTIOFWD_SOCKET_GROUP" "$VIRTIOFWD_SOCKET_DIR"
 
+test -n "$VIRTIOFWD_BIND_VFIO_PCI" &&
+   @LIBEXECDIR@//bind_uio_driver.py "$VIRTIOFWD_BIND_VFIO_PCI"
+
 # Clean up any stray PID file that may be lying around.
 rm -f "$VIRTIOFWD_PID_DIR"/virtioforwarder.pid

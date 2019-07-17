@@ -129,3 +129,14 @@ VIRTIOFWD_VHOST_CLIENT=y
 
 # Use experimental zero-copy support (VM to NIC) (default: disabled)
 VIRTIOFWD_ZERO_COPY=
+
+# A comma-separated list of devices to bind to vfio-pci during
+# virtio-forwarder startup. The following notation is supported:
+#   * 0000:01:02.3 - bind a specific PCI device
+#   * 01:02.3 - If no prefix is given, 0000: is assumed
+#   * netdevname - bind all the Virtual Functions associated with the netdev
+#   * netdevname:count - only bind the first 'count' VF's
+#
+# Example:
+#   VIRTIOFWD_BIND_VFIO_PCI=ens3,0000:01:02.3,ens4:16
+VIRTIOFWD_BIND_VFIO_PCI=
