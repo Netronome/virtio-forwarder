@@ -1,6 +1,7 @@
 [Unit]
 Description=Virtio-forwarder
-After=syslog.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
