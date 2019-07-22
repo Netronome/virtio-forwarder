@@ -92,6 +92,7 @@ CFLAGS += -D_GNU_SOURCE
 #CFLAGS += -DVIRTIO_ECHO -Wno-error=unused-but-set-variable -Wno-error=unused-parameter -Wno-error=unused-function
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -Ipb2
+CFLAGS += -fpie
 
 LDLIBS += -lprotobuf-c -lzmq
 
