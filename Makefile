@@ -92,7 +92,7 @@ CFLAGS += -D_GNU_SOURCE
 #CFLAGS += -DVIRTIO_ECHO -Wno-error=unused-but-set-variable -Wno-error=unused-parameter -Wno-error=unused-function
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -Ipb2
-CFLAGS += -fpie
+CFLAGS += -Wl,-z,now -specs=/usr/lib/rpm/redhat/redhat-hardened-ld
 
 LDLIBS += -lprotobuf-c -lzmq
 
