@@ -32,6 +32,7 @@
 ARCH ?= x86_64
 RTE_SDK ?= /usr/share/dpdk
 RTE_TARGET ?= $(ARCH)-default-linuxapp-gcc
+DISTRO := $(shell awk '/^ID=/' /etc/*-release | sed 's/[^=]*=//' | tr -d '"')
 
 ifeq ($(wildcard $(RTE_SDK)),)
     $(warning RTE_SDK=$(RTE_SDK) does not exist!)
@@ -92,7 +93,11 @@ CFLAGS += -D_GNU_SOURCE
 #CFLAGS += -DVIRTIO_ECHO -Wno-error=unused-but-set-variable -Wno-error=unused-parameter -Wno-error=unused-function
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -Ipb2
-CFLAGS += -Wl,-z,now -specs=/usr/lib/rpm/redhat/redhat-hardened-ld
+
+# Only add redhat spesific CFLAGS when dealing with a rhel based install
+ifeq ($(DISTRO),$(filter $(DISTRO), rhel centos fedora))
+	CFLAGS += -Wl,-z,now -specs=/usr/lib/rpm/redhat/redhat-hardened-ld
+endif
 
 LDLIBS += -lprotobuf-c -lzmq
 
