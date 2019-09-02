@@ -1,0 +1,23 @@
+---
+- name: EL7 - Upgrade all packages
+  yum:
+    name: "*"
+    state: latest
+
+- name: EL7 - Ensure convenient tools installed
+  yum:
+    name: "{{ packages }}"
+    state: latest
+  vars:
+    packages:
+      - vim
+      - patch
+      - diffstat
+      - git
+      - bridge-utils
+      - util-linux
+
+- name: EL7 - Ensure the 'Development tools' package group is installed
+  yum:
+    name: "@Development tools"
+    state: latest

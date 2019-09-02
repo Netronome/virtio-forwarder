@@ -1,0 +1,26 @@
+# Name to use as override in .changes files for the Maintainer: field
+# (mandatory, no default!).
+$maintainer_name='{{ maintainer_name }} <{{ maintainer_email }}>';
+
+# Default distribution to build.
+$distribution = "bionic";
+# Build arch-all by default.
+$build_arch_all = 1;
+
+# When to purge the build directory afterwards; possible values are "never",
+# "successful", and "always".  "always" is the default. It can be helpful
+# to preserve failing builds for debugging purposes.  Switch these comments
+# if you want to preserve even successful builds, and then use
+# "schroot -e --all-sessions" to clean them up manually.
+# $purge_build_directory = 'successful';
+# $purge_session = 'successful';
+# $purge_build_deps = 'successful';
+$purge_build_directory = 'never';
+$purge_session = 'never';
+$purge_build_deps = 'never';
+
+# Directory for writing build logs to
+$log_dir=$ENV{HOME}."/ubuntu/logs";
+
+# don't remove this, Perl needs it:
+1;

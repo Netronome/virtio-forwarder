@@ -1,0 +1,72 @@
+---
+- name: Ubuntu - Upgrade all packages to the latest version
+  become: true
+  apt:
+    name: "*"
+    state: latest
+    update_cache: true
+    force_apt_get: true
+
+- name: Ubuntu - Ensure convenient tools installed
+  become: true
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+      - vim
+      - patch
+      - diffstat
+      - git
+      - bridge-utils
+      - util-linux
+      - build-essential
+      - git-buildpackage
+      - pristine-tar
+      - sbuild
+      - debhelper
+      - ubuntu-dev-tools
+      - piuparts
+      - apt-cacher-ng
+
+- name: Ubuntu - Configure apt-cacher
+  become: true
+  template:
+    src: 10acng.j2
+    dest: /etc/apt/apt.conf.d/01acng
+
+- name: Ubuntu - Add '{{ ansible_user }}' to group sbuild
+  become: true
+  user:
+    name: "{{ ansible_user }}"
+    groups: sbuild
+    append: yes
+
+- name: Ubuntu - Ensure workdirs
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - ubuntu/build
+    - ubuntu/logs
+    - ubuntu/scratch
+
+- name: Ubuntu - Ensure scratch mount in chroot
+  become: true
+  lineinfile:
+    dest: /etc/schroot/sbuild/fstab
+    line: /home/{{ ansible_user }}/ubuntu/scratch /scratch none rw,bind 0 0
+    state: present
+
+- name: Ubuntu - Ensure sbuild config
+  template:
+    src: "{{ item }}.j2"
+    dest: .{{ item }}
+  with_items:
+    - mk-sbuild.rc
+    - sbuildrc
+
+- name: Ubuntu - generate GPG keypair
+  command: sbuild-update --keygen
+
+- name: Ubuntu - Generate schroots
+  command: mk-sbuild bionic --arch=amd64

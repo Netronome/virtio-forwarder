@@ -1,0 +1,10 @@
+SCHROOT_CONF_SUFFIX="source-root-users=root,sbuild,admin
+source-root-groups=root,sbuild,admin
+preserve-environment=true"
+# you will want to undo the below for stable releases, read `man mk-sbuild` for details
+# during the development cycle, these pockets are not used, but will contain important
+# updates after each release of Ubuntu
+# SKIP_UPDATES="1"
+SKIP_PROPOSED="1"
+# if you have e.g. apt-cacher-ng around
+DEBOOTSTRAP_PROXY=http://127.0.0.1:3142/

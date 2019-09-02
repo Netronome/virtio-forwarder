@@ -1,0 +1,8 @@
+---
+- name: Run EL7 specific tasks
+  import_tasks: redhat.yaml
+  when: ansible_facts['os_family']|lower == 'redhat'
+
+- name: Run Ubuntu specific tasks
+  import_tasks: debian.yaml
+  when: ansible_facts['os_family']|lower == 'debian'
