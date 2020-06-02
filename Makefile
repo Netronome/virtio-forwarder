@@ -94,9 +94,12 @@ CFLAGS += -D_GNU_SOURCE
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -Ipb2
 
-# Only add redhat spesific CFLAGS when dealing with a rhel based install
+# Only add redhat specific CFLAGS when dealing with a rhel based install
+# These flags are only relevant when linking to a shared DPDK library
+ifeq ($(CONFIG_RTE_BUILD_SHARED_LIB),y)
 ifeq ($(DISTRO),$(filter $(DISTRO), rhel centos fedora))
 	CFLAGS += -Wl,-z,now -specs=/usr/lib/rpm/redhat/redhat-hardened-ld
+endif
 endif
 
 LDLIBS += -lprotobuf-c -lzmq
