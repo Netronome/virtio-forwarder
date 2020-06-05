@@ -633,7 +633,7 @@ static int configure_signals(void)
 	return 0;
 }
 
-static void shutdown(void)
+static void virtiofwd_shutdown(void)
 {
 	if (remove_pidfile)
 		unlink(pidfile);
@@ -905,7 +905,7 @@ int main(int argc, char *argv[])
 	virtio_vhostuser_stop();
 	dpdk_eal_finalize();
 	log_info("Stopping %s", daemonname);
-	shutdown();
+	virtiofwd_shutdown();
 
 	if (core_sched_shutdown_rc)
 		return core_sched_shutdown_rc;

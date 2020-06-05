@@ -68,6 +68,7 @@
 #ifdef RTE_LIBRTE_PMD_BOND
 #include <rte_eth_bond.h>
 #endif
+#include "virtio_forwarder_compat.h"
 
 /* TODO: make MTU configurable (also impacts hugepage allocation in dpdk_eal.c) */
 #define JUMBO_IP_MTU (9000)
@@ -1026,32 +1027,32 @@ vring_available_entries(struct virtio_net *dev, uint16_t queue_id)
 }
 #endif
 
-static inline uint32_t calc_eth_header_hash(struct ether_hdr *eth_hdr)
+static inline uint32_t calc_eth_header_hash(struct rte_ether_hdr *eth_hdr)
 {
-	struct udp_hdr *udp_h;
-	struct ipv4_hdr *ipv4_h;
+	struct rte_udp_hdr *udp_h;
+	struct rte_ipv4_hdr *ipv4_h;
 	uint32_t buf[16];
 	uint32_t hashwords=0;
 
-	if (likely(eth_hdr->ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv4))) {
-		ipv4_h = (struct ipv4_hdr *)(eth_hdr + 1);
+	if (likely(eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))) {
+		ipv4_h = (struct rte_ipv4_hdr *)(eth_hdr + 1);
 		buf[hashwords++] = ipv4_h->src_addr;
 		buf[hashwords++] = ipv4_h->dst_addr;
 		buf[hashwords++] = ipv4_h->next_proto_id;
-		int ipv4_hdrlen = (ipv4_h->version_ihl & IPV4_HDR_IHL_MASK) *
-					IPV4_IHL_MULTIPLIER;
+		int ipv4_hdrlen = (ipv4_h->version_ihl & RTE_IPV4_HDR_IHL_MASK) *
+					RTE_IPV4_IHL_MULTIPLIER;
 		if (likely(ipv4_h->next_proto_id == IPPROTO_TCP ||
 				ipv4_h->next_proto_id == IPPROTO_UDP ||
 				ipv4_h->next_proto_id == IPPROTO_SCTP)) {
-			udp_h = (struct udp_hdr *)((unsigned char *)ipv4_h +
+			udp_h = (struct rte_udp_hdr *)((unsigned char *)ipv4_h +
 					ipv4_hdrlen);
 			buf[hashwords++] = (udp_h->dst_port<<16) +
 						udp_h->src_port;
 		}
-	} else if (eth_hdr->ether_type == rte_cpu_to_be_16(ETHER_TYPE_IPv6)) {
-		struct ipv6_hdr *ipv6_h;
+	} else if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV6)) {
+		struct rte_ipv6_hdr *ipv6_h;
 		uint32_t *p;
-		ipv6_h = (struct ipv6_hdr *)(eth_hdr + 1);
+		ipv6_h = (struct rte_ipv6_hdr *)(eth_hdr + 1);
 		p = (uint32_t*)(ipv6_h->src_addr);
 		buf[hashwords++] = *(p++);
 		buf[hashwords++] = *(p++);
@@ -1078,14 +1079,14 @@ calc_mbuf_queue(vio_vf_relay_t *relay, struct rte_mbuf **pkts, uint16_t nb_pkts)
 {
 	uint16_t i;
 	uint32_t h;
-	struct ether_hdr *eth_hdr;
+	struct rte_ether_hdr *eth_hdr;
 
 	for (i=0; i<nb_pkts; ++i) {
 		rte_prefetch0(rte_pktmbuf_mtod(pkts[i], void *));
 	}
 
 	for (i=0; i<nb_pkts; ++i) {
-		eth_hdr = rte_pktmbuf_mtod(pkts[i], struct ether_hdr *);
+		eth_hdr = rte_pktmbuf_mtod(pkts[i], struct rte_ether_hdr *);
 		h = calc_eth_header_hash(eth_hdr);
 
 		/* Determine queue that is to be used for each packet. */
