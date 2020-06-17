@@ -125,26 +125,48 @@ Installation
 virtio-forwarder packages are hosted on copr and ppa. To install, add the
 applicable repository and launch the appropriate package manager:
 
+RHEL/CentOS
+-----------
+
 .. code:: bash
 
-	# rpms
 	yum install yum-plugin-copr
 	yum copr enable netronome/virtio-forwarder
 	yum install virtio-forwarder
-
-	# debs
-	add-apt-repository ppa:netronome/virtio-forwarder
-	apt-get update
-	apt-get install virtio-forwarder
-
-The package install configures virtio-forwarder as a systemd/upstart service. Boot
-time startup can be configured using the appropriate initialization utility,
-e.g. ``systemctl enable virtio-forwarder``.
 
 .. note::
 
 	For RHEL/CentOS, the epel repo must be enabled to satisfy the required
 	dependencies.
+
+Debian/Ubuntu
+-------------
+
+.. code:: bash
+
+	add-apt-repository ppa:netronome/virtio-forwarder
+	apt-get update
+	apt-get install virtio-forwarder
+
+.. note::
+
+        virtio-forwarder is intended to be used in conjuction with a DPDK PMD
+        driver. The "Recommends" section of the Debian/Ubuntu package is thus
+        populated with PMD driver packages that can potentially be used on the
+        system. When virtio-forwarder is installed via apt/aptitude the packages
+        listed in the "Recommends" would normally also be installed.
+
+        This behaviour can be overridden by passing the ``--no-recommends`` option
+        to apt but at least one PMD driver would have to be manually installed
+        for virtio-forwarder to function correctly.
+
+Startup
+--------
+
+The package install configures virtio-forwarder as a systemd/upstart service. Boot
+time startup can be configured using the appropriate initialization utility,
+e.g. ``systemctl enable virtio-forwarder``.
+
 
 After installation, the software can be manually started using the following
 command:
