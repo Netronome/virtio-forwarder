@@ -586,7 +586,7 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 	 * Per <http://dpdk.org/doc/api/rte__ethdev_8h.html>, we must setup the
 	 * TX queue before setting up the RX queue.
 	 */
-	rte_eth_dev_info_get(relay->dpdk.dpdk_port, &dev_info);
+	rte_eth_dev_info_get(port_id, &dev_info);
 	get_tx_conf(&dev_info, &tx_conf);
 	err = rte_eth_tx_queue_setup(port_id, 0, 1024,
 				relay->vio.mempool_socket_id, &tx_conf);
