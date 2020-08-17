@@ -2,4 +2,4 @@
 host=ci.netronome.com
 port=29418
 project=xvio/virtio-forwarder
-defaultbranch=master
+defaultbranch=release-1.2.0
