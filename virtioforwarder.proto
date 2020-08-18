@@ -113,6 +113,15 @@ message RelayState {
     // CPU pair assigned to this relay.
     optional CPU cpu = 4;
 
+    // A structure to describe the vhost socket name associated with this relay
+    message VHOST {
+        // vhost socket name associated with this relay
+        required string vhost_socket_name = 1;
+    }
+
+    // VHOST interface associated with this relay
+    required VHOST vhost = 5;
+
     // A structure to describe the VF, if any, attached to this relay.
     message VF {
         // PCI address of VF attached to this relay.
@@ -120,7 +129,7 @@ message RelayState {
     }
 
     // VF attached to this relay.
-    optional VF vf = 5;
+    optional VF vf = 6;
 
     // A structure to represent statistics for the VF-to-VM side of the relay
     // (the "up" direction).
@@ -171,7 +180,7 @@ message RelayState {
     }
 
     // Statistics for the VF-to-VM side of the relay (the "up" direction).
-    required VFtoVM vf_to_vm = 6;
+    required VFtoVM vf_to_vm = 7;
 
     // A structure to represent statistics for the VM-to-VF side of the relay
     // (the "down" direction).
@@ -223,10 +232,10 @@ message RelayState {
     }
 
     // Statistics for the VM-to-VF side of the relay (the "down" direction).
-    required VMtoVF vm_to_vf = 7;
+    required VMtoVF vm_to_vf = 8;
 
     // NUMA node where the relay's memory pool is allocated
-    required uint32 socket_id = 8;
+    required uint32 socket_id = 9;
 }
 
 // Request for statistics.

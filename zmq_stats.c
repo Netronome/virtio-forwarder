@@ -63,6 +63,7 @@ struct stats_response_buffer
 	Virtioforwarder__RelayState relay_state[MAX_RELAYS];
 	Virtioforwarder__RelayState__CPU cpu[MAX_RELAYS];
 	Virtioforwarder__RelayState__VF vf[MAX_RELAYS];
+	Virtioforwarder__RelayState__VHOST vhost[MAX_RELAYS];
 	Virtioforwarder__RelayState__VFtoVM vf_to_vm[MAX_RELAYS];
 	Virtioforwarder__RelayState__VMtoVF vm_to_vf[MAX_RELAYS];
 
@@ -107,9 +108,13 @@ relay_query(
 
 	Virtioforwarder__RelayState__VMtoVF *vm_to_vf = b->vm_to_vf + j;
 	virtioforwarder__relay_state__vmto_vf__init(vm_to_vf);
+	Virtioforwarder__RelayState__VHOST *vhost = b->vhost + j;
+	virtioforwarder__relay_state__vhost__init(vhost);
 	relay_state->vm_to_vf = vm_to_vf;
 	vm_to_vf->active = s->virtio2vf_active;
 	vm_to_vf->internal_state = s->virtio_internal_state;
+	vhost->vhost_socket_name = s->vhost_socket_name;
+	relay_state->vhost = vhost;
 	if (vm_to_vf->active) {
 		cpu->has_vm_to_vf = true;
 		cpu->vm_to_vf = s->virtio2vf_cpu;

@@ -2190,6 +2190,15 @@ virtio_forwarder_get_stats(unsigned virtio_id, struct virtio_worker_stats *stats
 	vio_state_t virtio_state = r->vio.state;
 	virtio_state_to_str(virtio_state, stats->virtio_internal_state,
 			sizeof(stats->virtio_internal_state));
+
+	/* If a relay does not have a vhost-user socket accociated with it
+         * report NONE in stats output */
+	if (relay_ifname_map[virtio_id])
+		strncpy(stats->vhost_socket_name, relay_ifname_map[virtio_id],
+			sizeof(stats->vhost_socket_name));
+	else
+		strcpy(stats->vhost_socket_name, "NONE");
+
 	if (virtio_state == VIRTIO_READY) {
 		stats->virtio2vf_active = true;
 		stats->virtio2vf_cpu = r->vio.vio2vf_cpu;

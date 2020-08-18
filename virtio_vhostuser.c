@@ -100,7 +100,6 @@ static char vhost_socket_name_prefix[128];
 static char vhost_socket_name_suffix[128];
 static bool mk_default_sockets;
 struct virtio_vhostuser_conf g_vio_worker_conf;
-static char *relay_ifname_map[MAX_RELAYS];
 
 static const char
 *virtio_vhostuser_id_to_name(unsigned id, char *name, size_t namesz)

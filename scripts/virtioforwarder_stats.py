@@ -114,6 +114,9 @@ def _output_flat(reply, suppress_zero):
         middle = ['vf']
         out(r.vf, 'pci_addr_str')
 
+        middle = ['vhost']
+        out(r.vhost, 'vhost_socket_name')
+
         cpu_fieldset = fieldset(r.cpu)
 
         middle = ['vf_to_vm']

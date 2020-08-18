@@ -50,6 +50,9 @@ typedef uint16_t dpdk_port_t;
 typedef uint8_t dpdk_port_t;
 #endif
 
+/* Shared array of vhost_user socket names, indexed by virtio-relay ID */
+char *relay_ifname_map[MAX_RELAYS];
+
 extern struct virtio_vhostuser_conf g_vio_worker_conf;
 
 int virtio_forwarders_initialize(void);
@@ -148,6 +151,7 @@ struct virtio_worker_stats
 	bool virtio2vf_active;
 
 	/* The following fields are only valid when virtio2vf_active is true. */
+	char vhost_socket_name[128];
 	int virtio2vf_cpu;
 	uint64_t virtio_rx;
 	uint64_t virtio_rx_bytes;
