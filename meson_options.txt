@@ -1,0 +1,8 @@
+option('rpm', type: 'boolean', value: false,
+    description: 'Package as .rpm')
+option('deb', type: 'boolean', value: false,
+    description: 'Package as .deb')
+option('static', type: 'boolean', value: false,
+    description: 'Create virtio-forwarder executable that links statically to DPDK')
+option('outdir', type: 'string', value: 'outdir',
+    description: 'Final location of RPM when building with Copr')

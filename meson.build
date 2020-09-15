@@ -28,50 +28,90 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 project('virtio-forwarder', 'C',
-	version: run_command(['git', 'describe', '--tags', '--long']).stdout().strip(),
-	license: 'BSD',
-	default_options: ['buildtype=release'],
-	meson_version: '>= 0.47'
+    version: run_command(['git', 'describe', '--tags', '--long']).stdout().strip(),
+    license: 'BSD',
+    default_options: ['buildtype=release'],
+    meson_version: '>= 0.50'
 )
 
-dpdk = dependency('libdpdk')
-deps = [
-	dpdk,
-	dependency('libprotobuf-c'),
-	dependency('libzmq'),
-	dependency('threads'),
-]
+# Attempt to detect the Distro we are building on
+vf_install_dir = ''
+rhel_family = false
+debian_family = false
+distro = run_command('cat', '/etc/os-release')
+
+if (distro.stdout().to_lower().contains('fedora') or
+    distro.stdout().to_lower().contains('centos') or
+    distro.stdout().to_lower().contains('rhel'))
+    message('Fedora/CentOS/Rhel detected')
+    vf_install_dir = join_paths('lib64', 'virtio-forwarder')
+    rhel_family = true
+elif (distro.stdout().to_lower().contains('debian') or
+    distro.stdout().to_lower().contains('ubuntu'))
+    message('Debian/Ubuntu detected')
+    vf_install_dir = join_paths('lib', 'virtio-forwarder')
+    debian_family = true
+else
+    error('Unknown distro detected!')
+endif
+
+# Upstream dpdk-devel (RHEL/CentOS) does not yet ship a libdpdk.pc
+# file or static versions of the DPDK libraries. Use this script
+# to attempt to detect what libraries are installed and generate a
+# custom libdpdk.pc.
+if rhel_family
+  pkgconfig_builder = find_program('pkg_config_builder.py')
+  run_command(pkgconfig_builder)
+endif
+
+if get_option('static')
+  dpdk = dependency('libdpdk', static : true)
+else
+  dpdk = dependency('libdpdk')
+endif
+
 protoc_c = find_program('protoc-c')
 protoc = find_program('protoc')
 touch = find_program('touch')
 
-vf_install_dir = join_paths('lib', 'virtio-forwarder')
+deps = [
+    dpdk,
+    dependency('libprotobuf-c'),
+    dependency('libzmq'),
+    dependency('threads')]
 
 custom_target('proto-py',
-	input: 'virtioforwarder.proto',
-	output: 'virtioforwarder_pb2.py',
-	command: [protoc, '--proto_path=@CURRENT_SOURCE_DIR@', '--python_out=@OUTDIR@', '@INPUT@'],
-	build_by_default: true,
-	install: true,
-	install_dir: join_paths(vf_install_dir, 'protobuf', 'virtioforwarder'))
+    input: 'virtioforwarder.proto',
+    output: 'virtioforwarder_pb2.py',
+    command: [protoc, '--proto_path=@CURRENT_SOURCE_DIR@', '--python_out=@OUTDIR@', '@INPUT@'],
+    build_by_default: true,
+    install: true,
+    install_dir: join_paths(vf_install_dir, 'protobuf', 'virtioforwarder'))
 
 custom_target('init',
-	output: '__init__.py',
-	command: [touch, '@OUTPUT@'],
-	build_by_default: true,
-	install: true,
-	install_dir: join_paths(vf_install_dir, 'protobuf', 'virtioforwarder'))
+    output: '__init__.py',
+    command: [touch, '@OUTPUT@'],
+    build_by_default: true,
+    install: true,
+    install_dir: join_paths(vf_install_dir, 'protobuf', 'virtioforwarder'))
+
 # non-portable hack - cannot currently install same file in multiple directories
-meson.add_install_script('sh', '-c',
-	'install -m0644 $MESON_BUILD_ROOT/__init__.py $MESON_INSTALL_DESTDIR_PREFIX/lib/virtio-forwarder/protobuf/__init__.py')
+if rhel_family
+    meson.add_install_script('sh', '-c',
+      'install -m0644 $MESON_BUILD_ROOT/__init__.py $MESON_INSTALL_DESTDIR_PREFIX/lib64/virtio-forwarder/protobuf/__init__.py')
+elif debian_family
+    meson.add_install_script('sh', '-c',
+      'install -m0644 $MESON_BUILD_ROOT/__init__.py $MESON_INSTALL_DESTDIR_PREFIX/lib/virtio-forwarder/protobuf/__init__.py')
+endif
 
 subdir('scripts')
 
 pb_c = generator(protoc_c,
-	output: ['@BASENAME@.pb-c.h', '@BASENAME@.pb-c.c'],
-	arguments : ['--proto_path=@CURRENT_SOURCE_DIR@', '--c_out=@BUILD_DIR@', '@INPUT@'])
+    output: ['@BASENAME@.pb-c.h', '@BASENAME@.pb-c.c'],
+    arguments : ['--proto_path=@CURRENT_SOURCE_DIR@', '--c_out=@BUILD_DIR@', '@INPUT@'])
 generated_c = pb_c.process('virtioforwarder.proto')
 
+# Populate vrelay_version.h with the project versions
 vrelay_version = configuration_data()
 vrelay_version.set('MAJOR', '@0@'.format(meson.project_version().split('.').get(0)))
 vrelay_version.set('MINOR', '@0@'.format(meson.project_version().split('.').get(1)))
@@ -79,46 +119,55 @@ vrelay_version.set('PATCH', '@0@'.format(meson.project_version().split('.').get(
 vrelay_version.set('BUILD', '@0@'.format(meson.project_version().split('-').get(-2)))
 vrelay_version.set('SHASH', '@0@'.format(meson.project_version().split('-').get(-1)))
 vrelay = configure_file(input: 'vrelay_version.h.in',
-	output: 'vrelay_version.h',
-	configuration: vrelay_version,
-	install: false)
+    output: 'vrelay_version.h',
+    configuration: vrelay_version,
+    install: false)
 
 cflags = ['-Wno-error=cpp']
 cflags += '-std=gnu11'
 cflags += '-D_GNU_SOURCE'
+cflags += '-mavx'
 
 # older versions of the dpdk pc file did not include the baseline architecture
 # set it to DPDK's old default (it has since been moved to corei7 in 17.08)
 # this can be dropped once support for DPDK < 18.11 is no longer necessary
 dpdk_cflags = dpdk.get_pkgconfig_variable('cflags')
 if host_machine.cpu_family().startswith('x86') and not dpdk_cflags.contains('-march')
-	cflags += '-march=core2'
+    cflags += '-march=core2'
 endif
 
 sources = files('argv.c',
-	'cmdline.c',
-	'cpuinfo.c',
-	'dpdk_eal.c',
-	'file_mon.c',
-	'log.c',
-	'ovsdb_mon.c',
-	'sriov.c',
-	'ugid.c',
-	'virtio_forwarder_main.c',
-	'virtio_vhostuser.c',
-	'virtio_worker.c',
-	'zmq_config.c',
-	'zmq_port_control.c',
-	'zmq_server.c',
-	'zmq_service.c',
-	'zmq_stats.c',
-	'zmq_core_sched.c',)
+    'cmdline.c',
+    'cpuinfo.c',
+    'dpdk_eal.c',
+    'file_mon.c',
+    'log.c',
+    'ovsdb_mon.c',
+    'sriov.c',
+    'ugid.c',
+    'virtio_forwarder_main.c',
+    'virtio_vhostuser.c',
+    'virtio_worker.c',
+    'zmq_config.c',
+    'zmq_port_control.c',
+    'zmq_server.c',
+    'zmq_service.c',
+    'zmq_stats.c',
+    'zmq_core_sched.c',)
 
 executable('virtio-forwarder',
-	[vrelay, generated_c, sources],
-	c_args: cflags,
-	dependencies: deps,
-	install: true)
+    [vrelay, generated_c, sources],
+    c_args: cflags,
+    dependencies: deps,
+    install: true)
+
+# Hook to call the packaging meson scripts from the virtio-forwarder-dist repo
+if get_option('rpm') or get_option('deb')
+    # clone packaging repo and include as subdir
+    dist_repo = 'https://github.com/Netronome/virtio-forwarder-dist'
+    git_clone = run_command('git', 'clone', dist_repo, 'packaging')
+    subdir('packaging')
+endif
 
 subdir('startup')
 subdir('doc')
