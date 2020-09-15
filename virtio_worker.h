@@ -51,7 +51,7 @@ typedef uint8_t dpdk_port_t;
 #endif
 
 /* Shared array of vhost_user socket names, indexed by virtio-relay ID */
-char *relay_ifname_map[MAX_RELAYS];
+extern char *relay_ifname_map[MAX_RELAYS];
 
 extern struct virtio_vhostuser_conf g_vio_worker_conf;
 
