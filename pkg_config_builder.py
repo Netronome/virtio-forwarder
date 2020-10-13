@@ -69,6 +69,6 @@ config_data = {
 
 j2_template = Template(template)
 
-if not os.path.exists(os.path.join(pkg_config_path, "libdpdk.pc"):
+if not os.path.exists(os.path.join(pkg_config_path, "libdpdk.pc")):
     with open(os.path.join(pkg_config_path, "libdpdk.pc"), "w") as f:
         f.write(j2_template.render(config_data))
