@@ -55,6 +55,32 @@ else
     error('Unknown distro detected!')
 endif
 
+# Populate vrelay_version.h with the project versions
+vrelay_version = configuration_data()
+vrelay_version.set('MAJOR', '@0@'.format(meson.project_version().split('.').get(0)))
+vrelay_version.set('MINOR', '@0@'.format(meson.project_version().split('.').get(1)))
+vrelay_version.set('PATCH', '@0@'.format(meson.project_version().split('.').get(2).split('-').get(0)))
+vrelay_version.set('BUILD', '@0@'.format(meson.project_version().split('-').get(-2)))
+vrelay_version.set('SHASH', '@0@'.format(meson.project_version().split('-').get(-1)))
+vrelay = configure_file(input: 'vrelay_version.h.in',
+    output: 'vrelay_version.h',
+    configuration: vrelay_version,
+    install: false)
+
+# Hook to call the packaging meson scripts from the virtio-forwarder-dist repo
+if get_option('rpm') or get_option('srpm') or get_option('deb')
+    # clone packaging repo and include as subdir
+    dist_repo = 'https://github.com/Netronome/virtio-forwarder-dist'
+    git_clone = run_command('git', 'clone', dist_repo, 'packaging')
+    subdir('packaging')
+    # The copr build system will typically call this meson file with the option
+    # "srpm". This is done in a mock chroot, usually of the latest Fedora. In
+    # order to avoid any unnecessary installs in the chroot meson will stop here
+    if get_option('srpm')
+        subdir_done()
+    endif
+endif
+
 # Upstream dpdk-devel (RHEL/CentOS) does not yet ship a libdpdk.pc
 # file or static versions of the DPDK libraries. Use this script
 # to attempt to detect what libraries are installed and generate a
@@ -111,18 +137,6 @@ pb_c = generator(protoc_c,
     arguments : ['--proto_path=@CURRENT_SOURCE_DIR@', '--c_out=@BUILD_DIR@', '@INPUT@'])
 generated_c = pb_c.process('virtioforwarder.proto')
 
-# Populate vrelay_version.h with the project versions
-vrelay_version = configuration_data()
-vrelay_version.set('MAJOR', '@0@'.format(meson.project_version().split('.').get(0)))
-vrelay_version.set('MINOR', '@0@'.format(meson.project_version().split('.').get(1)))
-vrelay_version.set('PATCH', '@0@'.format(meson.project_version().split('.').get(2).split('-').get(0)))
-vrelay_version.set('BUILD', '@0@'.format(meson.project_version().split('-').get(-2)))
-vrelay_version.set('SHASH', '@0@'.format(meson.project_version().split('-').get(-1)))
-vrelay = configure_file(input: 'vrelay_version.h.in',
-    output: 'vrelay_version.h',
-    configuration: vrelay_version,
-    install: false)
-
 cflags = ['-Wno-error=cpp']
 cflags += '-std=gnu11'
 cflags += '-D_GNU_SOURCE'
@@ -161,13 +175,6 @@ executable('virtio-forwarder',
     dependencies: deps,
     install: true)
 
-# Hook to call the packaging meson scripts from the virtio-forwarder-dist repo
-if get_option('rpm') or get_option('deb')
-    # clone packaging repo and include as subdir
-    dist_repo = 'https://github.com/Netronome/virtio-forwarder-dist'
-    git_clone = run_command('git', 'clone', dist_repo, 'packaging')
-    subdir('packaging')
-endif
 
 subdir('startup')
 subdir('doc')

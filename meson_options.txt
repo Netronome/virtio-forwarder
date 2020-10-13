@@ -1,5 +1,7 @@
 option('rpm', type: 'boolean', value: false,
     description: 'Package as .rpm')
+option('srpm', type: 'boolean', value: false,
+    description: 'Create srpm (for Copr builds)')
 option('deb', type: 'boolean', value: false,
     description: 'Package as .deb')
 option('static', type: 'boolean', value: false,
