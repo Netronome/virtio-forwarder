@@ -34,6 +34,9 @@ project('virtio-forwarder', 'C',
     meson_version: '>= 0.50'
 )
 
+# Import filesystem module
+fs = import('fs')
+
 # Attempt to detect the Distro we are building on
 vf_install_dir = ''
 rhel_family = false
@@ -55,17 +58,35 @@ else
     error('Unknown distro detected!')
 endif
 
-# Populate vrelay_version.h with the project versions
-vrelay_version = configuration_data()
-vrelay_version.set('MAJOR', '@0@'.format(meson.project_version().split('.').get(0)))
-vrelay_version.set('MINOR', '@0@'.format(meson.project_version().split('.').get(1)))
-vrelay_version.set('PATCH', '@0@'.format(meson.project_version().split('.').get(2).split('-').get(0)))
-vrelay_version.set('BUILD', '@0@'.format(meson.project_version().split('-').get(-2)))
-vrelay_version.set('SHASH', '@0@'.format(meson.project_version().split('-').get(-1)))
-vrelay = configure_file(input: 'vrelay_version.h.in',
-    output: 'vrelay_version.h',
-    configuration: vrelay_version,
-    install: false)
+# If the project version string is empty it is likley that the git command used
+# to grab the version failed. In this situasion meson was probably called from a
+# source tree with the git info stripped out (source rpm and debs).
+if meson.project_version() == ''
+    message('Not running in a git tree')
+else
+    # Populate vrelay_version.h with the project versions
+    vrelay_version = configuration_data()
+    vrelay_version.set('MAJOR', '@0@'.format(meson.project_version().split('.').get(0)))
+    vrelay_version.set('MINOR', '@0@'.format(meson.project_version().split('.').get(1)))
+    vrelay_version.set('PATCH', '@0@'.format(meson.project_version().split('.').get(2).split('-').get(0)))
+    vrelay_version.set('BUILD', '@0@'.format(meson.project_version().split('-').get(-2)))
+    vrelay_version.set('SHASH', '@0@'.format(meson.project_version().split('-').get(-1)))
+    vrelay = configure_file(input: 'vrelay_version.h.in',
+        output: 'vrelay_version.h',
+        configuration: vrelay_version,
+        install: false)
+endif
+
+vrelay_file_root = join_paths(meson.source_root(), 'vrelay_version.h')
+vrelay_file_build = join_paths(meson.build_root(), 'vrelay_version.h')
+if not (fs.exists(vrelay_file_build) or fs.exists(vrelay_file_root))
+    # This shouldn't happen ordinarily. Either vrelay_version.h was generated
+    # from the git tree or it was included in the root source directory by the
+    # packaging logic
+    error('vrelay_version.h not found! Exiting...')
+else
+vrelay = 'vrelay_version.h'
+endif
 
 # Hook to call the packaging meson scripts from the virtio-forwarder-dist repo
 if get_option('rpm') or get_option('srpm') or get_option('deb')
