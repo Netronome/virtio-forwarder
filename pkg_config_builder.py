@@ -21,6 +21,10 @@ else:
         ['dpkg-query', '-f', '${Version}', '-W', 'dpdk']).decode('UTF-8')
     dpdk_version = dpkg_query_outplit('-')[0]
 
+if (dpdk_version == ''):
+    print("Could not find DPDK package", file=sys.stderr)
+    exit(1)
+
 dpdk_libraries = []
 
 # Order is important here
@@ -72,3 +76,8 @@ j2_template = Template(template)
 if not os.path.exists(os.path.join(pkg_config_path, "libdpdk.pc")):
     with open(os.path.join(pkg_config_path, "libdpdk.pc"), "w") as f:
         f.write(j2_template.render(config_data))
+        f.flush()
+        os.fsync(f)
+
+print("Wrote {}".format(os.path.join(pkg_config_path, "libdpdk.pc")))
+exit(0)

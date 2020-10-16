@@ -107,25 +107,18 @@ endif
 # to attempt to detect what libraries are installed and generate a
 # custom libdpdk.pc.
 if rhel_family
-  pkgconfig_builder = find_program('pkg_config_builder.py')
-  run_command(pkgconfig_builder)
-endif
-
-if get_option('static')
-  dpdk = dependency('libdpdk', static : true)
-else
-  dpdk = dependency('libdpdk')
+    pkgconfig_builder = find_program('pkg_config_builder.py')
+    r = run_command(pkgconfig_builder)
+    if r.returncode() != 0
+        error(r.stderr().strip())
+    else
+        message(r.stdout().strip())
+    endif
 endif
 
 protoc_c = find_program('protoc-c')
 protoc = find_program('protoc')
 touch = find_program('touch')
-
-deps = [
-    dpdk,
-    dependency('libprotobuf-c'),
-    dependency('libzmq'),
-    dependency('threads')]
 
 custom_target('proto-py',
     input: 'virtioforwarder.proto',
@@ -157,6 +150,18 @@ pb_c = generator(protoc_c,
     output: ['@BASENAME@.pb-c.h', '@BASENAME@.pb-c.c'],
     arguments : ['--proto_path=@CURRENT_SOURCE_DIR@', '--c_out=@BUILD_DIR@', '@INPUT@'])
 generated_c = pb_c.process('virtioforwarder.proto')
+
+if get_option('static')
+  dpdk = dependency('libdpdk', static : true)
+else
+  dpdk = dependency('libdpdk')
+endif
+
+deps = [
+    dpdk,
+    dependency('libprotobuf-c'),
+    dependency('libzmq'),
+    dependency('threads')]
 
 cflags = ['-Wno-error=cpp']
 cflags += '-std=gnu11'
