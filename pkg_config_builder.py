@@ -9,14 +9,11 @@ import subprocess
 if os.path.exists("/usr/lib64"):
     # Rhel/CentOS/Fedora
     library_path = "/usr/lib64"
-    pkg_config_path = os.path.join(library_path, "pkgconfig")
     dpdk_version = subprocess.check_output(
         ['rpm', '-q', '--qf', '%{VERSION}', 'dpdk']).decode('UTF-8')
 else:
     # Ubuntu/Debian
     library_path = "/usr/lib"
-    pkg_config_path = os.path.join(library_path,
-        "x86_64-linux-gnu/pkgconfig/pkgconfig")
     dpkg_query_out = subprocess.check_output(
         ['dpkg-query', '-f', '${Version}', '-W', 'dpdk']).decode('UTF-8')
     dpdk_version = dpkg_query_outplit('-')[0]
@@ -24,6 +21,9 @@ else:
 if (dpdk_version == ''):
     print("Could not find DPDK package", file=sys.stderr)
     exit(1)
+
+# Write the .pc file to a place that all users have access to.
+pkg_config_path = "/tmp/pkgconfig"
 
 dpdk_libraries = []
 
@@ -73,7 +73,8 @@ config_data = {
 
 j2_template = Template(template)
 
-if not os.path.exists(os.path.join(pkg_config_path, "libdpdk.pc")):
+if not os.path.exists(pkg_config_path):
+    os.makedirs(pkg_config_path)
     with open(os.path.join(pkg_config_path, "libdpdk.pc"), "w") as f:
         f.write(j2_template.render(config_data))
         f.flush()
