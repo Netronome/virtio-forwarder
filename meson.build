@@ -31,11 +31,8 @@ project('virtio-forwarder', 'C',
     version: run_command(['git', 'describe', '--tags', '--long']).stdout().strip(),
     license: 'BSD',
     default_options: ['buildtype=release'],
-    meson_version: '>= 0.50'
+    meson_version: '>= 0.49.2'
 )
-
-# Import filesystem module
-fs = import('fs')
 
 # Attempt to detect the Distro we are building on
 vf_install_dir = ''
@@ -73,13 +70,14 @@ else
     vrelay_version.set('SHASH', '@0@'.format(meson.project_version().split('-').get(-1)))
     vrelay = configure_file(input: 'vrelay_version.h.in',
         output: 'vrelay_version.h',
-        configuration: vrelay_version,
-        install: false)
+        configuration: vrelay_version)
 endif
 
 vrelay_file_root = join_paths(meson.source_root(), 'vrelay_version.h')
 vrelay_file_build = join_paths(meson.build_root(), 'vrelay_version.h')
-if not (fs.exists(vrelay_file_build) or fs.exists(vrelay_file_root))
+
+if not ((run_command('[', '-e', vrelay_file_root, ']').returncode() != 0) or
+        (run_command('[', '-e', vrelay_file_build, ']').returncode() != 0))
     # This shouldn't happen ordinarily. Either vrelay_version.h was generated
     # from the git tree or it was included in the root source directory by the
     # packaging logic
