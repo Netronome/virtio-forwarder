@@ -76,18 +76,18 @@ endif
 vrelay_file_root = join_paths(meson.source_root(), 'vrelay_version.h')
 vrelay_file_build = join_paths(meson.build_root(), 'vrelay_version.h')
 
-if not ((run_command('[', '-e', vrelay_file_root, ']').returncode() != 0) or
-        (run_command('[', '-e', vrelay_file_build, ']').returncode() != 0))
+if ((run_command('[', '-e', vrelay_file_build, ']').returncode() == 0) or
+    (run_command('[', '-e', vrelay_file_root, ']').returncode() == 0))
+    vrelay = 'vrelay_version.h'
+else
     # This shouldn't happen ordinarily. Either vrelay_version.h was generated
     # from the git tree or it was included in the root source directory by the
     # packaging logic
     error('vrelay_version.h not found! Exiting...')
-else
-vrelay = 'vrelay_version.h'
 endif
 
 # Hook to call the packaging meson scripts from the virtio-forwarder-dist repo
-if get_option('rpm') or get_option('srpm') or get_option('deb')
+if get_option('rpm') or get_option('srpm') or get_option('deb') or get_option('dsc')
     # clone packaging repo and include as subdir
     dist_repo = 'https://github.com/Netronome/virtio-forwarder-dist'
     git_clone = run_command('git', 'clone', dist_repo, 'packaging')
@@ -95,7 +95,10 @@ if get_option('rpm') or get_option('srpm') or get_option('deb')
     # The copr build system will typically call this meson file with the option
     # "srpm". This is done in a mock chroot, usually of the latest Fedora. In
     # order to avoid any unnecessary installs in the chroot meson will stop here
-    if get_option('srpm')
+    #
+    # For PPA uploads a signed .dsc file (among other things) needs to be generated
+    # The scripts in the virtio-forwarder-dist repo will do this for us.
+    if get_option('srpm') or get_option('dsc')
         subdir_done()
     endif
 endif

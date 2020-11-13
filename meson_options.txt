@@ -4,6 +4,10 @@ option('srpm', type: 'boolean', value: false,
     description: 'Create srpm (for Copr builds)')
 option('deb', type: 'boolean', value: false,
     description: 'Package as .deb')
+option('dsc', type: 'boolean', value: false,
+    description: 'Create dsc for PPA builds/uploads')
+option('debian_dist', type: 'string', value: 'unstable',
+    description: 'Debian distro targeted for deb packages')
 option('static', type: 'boolean', value: false,
     description: 'Create virtio-forwarder executable that links statically to DPDK')
 option('outdir', type: 'string', value: 'outdir',
