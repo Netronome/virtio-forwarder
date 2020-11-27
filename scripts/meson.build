@@ -27,15 +27,47 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-scripts = files('create_zmq_dir.py',
-	'bind_uio_driver.py',
-	'parse_numa.py',
-	'virtioforwarder_config.py',
-	'virtioforwarder_core_pinner.py',
-	'virtioforwarder_core_scheduler.py',
-	'virtioforwarder_monitor_load.py',
-	'virtioforwarder_port_control.py',
-	'virtioforwarder_stats.py'
-)
+# Default to python2 version in case something fails here
+helper_scripts_ver='python2'
+
+if (rhel_family)
+    # For any Fedora release, use python3 helper scripts
+    if ((distro.stdout().to_lower().contains('fedora') == true) and
+        (distro.stdout().to_lower().contains('centos') == false))
+        helper_scripts_ver='python3'
+    else
+        # CentOS/Redhat
+        major_ver = run_command('rpm', '--eval', '%{rhel}')
+
+        if (major_ver.stdout().strip() == '7')
+            helper_scripts_ver='python2'
+        elif (major_ver.stdout().strip() == '8')
+            helper_scripts_ver='python3'
+        endif
+    endif
+
+elif (debian_family)
+    # Only focal will use python3 helper script versions
+    # Bionic, Xenial and vanilla Debian will default to python2
+    # for now...
+    if (distro.stdout().to_lower().contains('focal') == true)
+        helper_scripts_ver='python3'
+    else
+        helper_scripts_ver='python2'
+    endif
+endif
+
+# When generating source packages both subdirectories (python2 and 3)
+# will be present in the source package
+
+scripts = files(join_paths(helper_scripts_ver, 'create_zmq_dir.py'),
+        join_paths(helper_scripts_ver, 'bind_uio_driver.py'),
+        join_paths(helper_scripts_ver, 'parse_numa.py'),
+        join_paths(helper_scripts_ver, 'virtioforwarder_config.py'),
+        join_paths(helper_scripts_ver, 'virtioforwarder_core_pinner.py'),
+        join_paths(helper_scripts_ver, 'virtioforwarder_core_scheduler.py'),
+        join_paths(helper_scripts_ver, 'virtioforwarder_monitor_load.py'),
+        join_paths(helper_scripts_ver, 'virtioforwarder_port_control.py'),
+        join_paths(helper_scripts_ver, 'virtioforwarder_stats.py'))
 
 install_data(scripts, install_dir: vf_install_dir)
