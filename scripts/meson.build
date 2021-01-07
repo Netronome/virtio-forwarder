@@ -47,10 +47,9 @@ if (rhel_family)
     endif
 
 elif (debian_family)
-    # Only focal will use python3 helper script versions
-    # Bionic, Xenial and vanilla Debian will default to python2
-    # for now...
-    if (distro.stdout().to_lower().contains('focal') == true)
+    # Only focal and bionic will use python3 helper script versions
+    if ((distro.stdout().to_lower().contains('focal') == true) or
+       (distro.stdout().to_lower().contains('bionic') == true))
         helper_scripts_ver='python3'
     else
         helper_scripts_ver='python2'
