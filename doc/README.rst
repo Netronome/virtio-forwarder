@@ -9,7 +9,7 @@ by means of the DPDK poll mode driver (PMD) mechanism.
 VIO4WD supports up to 64 forwarding instances, where an instance is essentially a
 VF <-> virtio pairing. Packets received on the VFs are sent on their
 corresponding virtio backend and vice versa. The relay principle allows a user
-to benefit from technologies provided by both NICs and the the virtio network
+to benefit from technologies provided by both NICs and the virtio network
 driver. A NIC may offload some or all network functions, while virtio enables VM
 live migration and is also agnostic to the underlying hardware.
 
