@@ -108,12 +108,19 @@ endif
 # to attempt to detect what libraries are installed and generate a
 # custom libdpdk.pc.
 if rhel_family
-    pkgconfig_builder = find_program('pkg_config_builder.py')
-    r = run_command(pkgconfig_builder)
-    if r.returncode() != 0
-        error(r.stderr().strip())
+    libdpdk_pc = join_paths('/usr/local/lib64/pkgconfig/' , 'libdpdk.pc')
+    if (run_command('[', '-e', libdpdk_pc, ']').returncode() != 0)
+        message('Creating libdpdk.pc file')
+        pkgconfig_builder = find_program('pkg_config_builder.py')
+        r = run_command(pkgconfig_builder)
+        if r.returncode() != 0
+            error(r.stderr().strip())
+        else
+            message(r.stdout().strip())
+        endif
     else
-        message(r.stdout().strip())
+        # Use the libdpdk.pc found on the system
+        message('Using libdpdk.pc located at: ' + libdpdk_pc)
     endif
 endif
 
