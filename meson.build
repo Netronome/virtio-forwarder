@@ -76,9 +76,10 @@ endif
 vrelay_file_root = join_paths(meson.source_root(), 'vrelay_version.h')
 vrelay_file_build = join_paths(meson.build_root(), 'vrelay_version.h')
 
-if ((run_command('[', '-e', vrelay_file_build, ']').returncode() == 0) or
-    (run_command('[', '-e', vrelay_file_root, ']').returncode() == 0))
-    vrelay = 'vrelay_version.h'
+if (run_command('[', '-e', vrelay_file_build, ']').returncode() == 0)
+    vrelay = vrelay_file_build
+elif (run_command('[', '-e', vrelay_file_root, ']').returncode() == 0)
+    vrelay = vrelay_file_root
 else
     # This shouldn't happen ordinarily. Either vrelay_version.h was generated
     # from the git tree or it was included in the root source directory by the
