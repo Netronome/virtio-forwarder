@@ -30,6 +30,11 @@
 sphinx = find_program('sphinx-build', required: false)
 
 if sphinx.found()
+	# This is a "dummy" configuration_data() object. It's used as a
+	# workaround to copy the README.rst and index.rst to the build directory
+	# in meson v0.45.1
+	dummy_conf_data = configuration_data()
+
 	conf_py_data = configuration_data()
 	conf_py_data.set('VRELAY_VERSION', meson.project_version())
 	conf_py_data.set('APP__NAME', meson.project_name())
@@ -40,11 +45,11 @@ if sphinx.found()
 	# need to copy index.rst and README.rst in the build directory
 	configure_file(input: 'index.rst',
 		output: 'index.rst',
-		copy: true,
+		configuration: dummy_conf_data,
 		install: false)
 	configure_file(input: 'README.rst',
 		output: 'README.rst',
-		copy: true,
+		configuration: dummy_conf_data,
 		install: false)
 
 	# always build the manpages, as the makefiles do

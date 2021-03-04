@@ -31,7 +31,7 @@ project('virtio-forwarder', 'C',
     version: run_command(['git', 'describe', '--tags', '--long']).stdout().strip(),
     license: 'BSD',
     default_options: ['buildtype=release'],
-    meson_version: '>= 0.49.2'
+    meson_version: '>= 0.45.1'
 )
 
 # Attempt to detect the Distro we are building on
