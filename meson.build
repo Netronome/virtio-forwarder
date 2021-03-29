@@ -166,12 +166,6 @@ else
   dpdk = dependency('libdpdk')
 endif
 
-deps = [
-    dpdk,
-    dependency('libprotobuf-c'),
-    dependency('libzmq'),
-    dependency('threads')]
-
 cflags = ['-Wno-error=cpp']
 cflags += '-std=gnu11'
 cflags += '-D_GNU_SOURCE'
@@ -203,6 +197,18 @@ sources = files('argv.c',
     'zmq_service.c',
     'zmq_stats.c',
     'zmq_core_sched.c',)
+
+if not get_option('static')
+  if dpdk.version().version_compare('>=20.11')
+    dpdk = declare_dependency(dependencies : dpdk, link_args : '-lrte_net_bond')
+  endif
+endif
+
+deps = [
+    dpdk,
+    dependency('libprotobuf-c'),
+    dependency('libzmq'),
+    dependency('threads')]
 
 executable('virtio-forwarder',
     [vrelay, generated_c, sources],

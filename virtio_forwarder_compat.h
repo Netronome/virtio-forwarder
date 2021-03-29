@@ -44,3 +44,10 @@
 #define rte_ipv6_hdr ipv6_hdr
 #define rte_udp_hdr udp_hdr
 #endif /* RTE_VERSION < RTE_VERSION_NUM(19,8,0,0) */
+
+#if RTE_VERSION < RTE_VERSION_NUM(20,11,0,0)
+#define RTE_LCORE_FOREACH_WORKER RTE_LCORE_FOREACH_SLAVE
+#define SKIP_MAIN SKIP_MASTER
+
+#define rte_get_main_lcore rte_get_master_lcore
+#endif /* RTE_VERSION < RTE_VERSION_NUM(20,11,0,0) */

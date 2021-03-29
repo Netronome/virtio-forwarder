@@ -1731,15 +1731,15 @@ int virtio_forwarders_initialize(void)
 	/* Launch worker_func on all slaves. */
 	memset(worker_threads, 0, sizeof(*worker_threads) * MAX_CPUS);
 	worker_core_bitmap = conf->worker_core_bitmap;
-	log_debug("Master running on core %u", rte_get_master_lcore());
+	log_debug("Main running on core %u", rte_get_main_lcore());
 	log_debug("Starting workers on CPU bitmap 0x%08llX",
 		(unsigned long long)worker_core_bitmap);
-	RTE_LCORE_FOREACH_SLAVE(cpu) {
+	RTE_LCORE_FOREACH_WORKER(cpu) {
 		worker_thread_t *worker = &worker_threads[cpu];
 		worker->cpu = cpu;
 		worker->initialized = true;
 	}
-	rte_eal_mp_remote_launch(worker_func, NULL, SKIP_MASTER);
+	rte_eal_mp_remote_launch(worker_func, NULL, SKIP_MAIN);
 
 	/* Need to add static VFs from a separate thread: The memory required
 	 * for initializing a netdev is reserved according to the socket of
@@ -1771,7 +1771,7 @@ void virtio_forwarders_shutdown(void)
 		}
 	}
 
-	RTE_LCORE_FOREACH_SLAVE(cpu) {
+	RTE_LCORE_FOREACH_WORKER(cpu) {
 		if (rte_eal_wait_lcore(cpu) < 0) {
 			log_error("Error waiting for cpu %d", cpu);
 			break;

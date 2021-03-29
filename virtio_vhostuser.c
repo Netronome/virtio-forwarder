@@ -532,7 +532,7 @@ static int register_relay_socket(const char *vhost_path, unsigned relay_id)
 	if (conf->vhost_client)
 		flags |= RTE_VHOST_USER_CLIENT;
 #endif
-#if RTE_VERSION >= RTE_VERSION_NUM(16,11,0,0)
+#if (RTE_VERSION >= RTE_VERSION_NUM(16,11,0,0)) && (RTE_VERSION < RTE_VERSION_NUM(20,11,0,0))
 	if (conf->zerocopy)
 		flags |= RTE_VHOST_USER_DEQUEUE_ZERO_COPY;
 #endif
