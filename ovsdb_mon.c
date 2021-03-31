@@ -364,16 +364,17 @@ static int is_ovspidfile(const struct dirent *d)
 
 static void clean_old(void)
 {
+#define BUF_SIZE (256 + 64)
 	struct dirent **namelist;
 	int n;
 
 	n = scandir("/tmp", &namelist, is_ovspidfile, alphasort);
 	if (n > 0) {
 		while (n--) {
-			char buf[128];
+			char buf[BUF_SIZE];
 			log_debug("Found old pidfile: '%s'",
 				namelist[n]->d_name);
-			snprintf(buf, 128, "/usr/bin/pkill -F /tmp/%s ovsdb-client &>/dev/null",
+			snprintf(buf, BUF_SIZE, "/usr/bin/pkill -F /tmp/%s ovsdb-client &>/dev/null",
 				namelist[n]->d_name);
 			if (system(buf) == -1)
 				log_debug("Error killing stale ovsdb-client");

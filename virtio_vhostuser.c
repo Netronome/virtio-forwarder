@@ -37,6 +37,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <stdbool.h>
+#include <bsd/string.h>
 #include "virtio_vhostuser.h"
 #define __MODULE__ "virtio_vhostuser"
 #include "log.h"
@@ -453,13 +454,13 @@ static int prep_default_sockets(void)
 	}
 
 	/* Name seems valid. */
-	strncpy(vhost_socket_name_suffix, conf->socket_name, 128); /* temp copy of const conf string */
+	strlcpy(vhost_socket_name_suffix, conf->socket_name, 128); /* temp copy of const conf string */
 	s = strstr(vhost_socket_name_suffix, "%u");
 	len = snprintf(vhost_socket_name_prefix, 128, "%s/", conf->socket_path);
 	*s=0;
 	snprintf(vhost_socket_name_prefix+len, 128-len, "%s", vhost_socket_name_suffix); /* append up to %u */
 	if (*(s+2)) {// if something more after %u
-		strncpy(vhost_socket_name_suffix, s+2, 128);
+		strlcpy(vhost_socket_name_suffix, s+2, 128);
 		if (vhost_socket_name_suffix[0] >= '0' &&
 				vhost_socket_name_suffix[0] <= '9') {
 			log_error("vhost-user socket name '%s' may not contain a number after '%%u'!'",
@@ -672,9 +673,9 @@ int virtio_vhostuser_start(const struct virtio_vhostuser_conf *conf,
 
 	if (mk_default_sockets) {
 		for (int id=0; id<MAX_RELAYS; ++id) {
-			char buf[128];
+			char buf[128 + 10 + 128];
 
-			virtio_vhostuser_id_to_name(id, buf, 128);
+			virtio_vhostuser_id_to_name(id, buf, 266);
 			err = register_relay_socket(buf, id);
 			if (err)
 				return err;

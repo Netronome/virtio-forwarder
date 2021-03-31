@@ -73,8 +73,8 @@ else
         configuration: vrelay_version)
 endif
 
-vrelay_file_root = join_paths(meson.source_root(), 'vrelay_version.h')
-vrelay_file_build = join_paths(meson.build_root(), 'vrelay_version.h')
+vrelay_file_root = join_paths(meson.current_source_dir(), 'vrelay_version.h')
+vrelay_file_build = join_paths(meson.current_build_dir(), 'vrelay_version.h')
 
 if (run_command('[', '-e', vrelay_file_build, ']').returncode() == 0)
     vrelay = vrelay_file_build
@@ -208,6 +208,7 @@ deps = [
     dpdk,
     dependency('libprotobuf-c'),
     dependency('libzmq'),
+    dependency('libbsd'),
     dependency('threads')]
 
 executable('virtio-forwarder',

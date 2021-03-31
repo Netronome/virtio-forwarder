@@ -59,6 +59,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/prctl.h>
+#include <bsd/string.h>
 
 #define DEFAULT_MASTER_LCORE 0
 #define DEFAULT_LOG_LEVEL 6
@@ -82,7 +83,7 @@
 static bool running = true;
 static bool must_stop = false;
 static char pidpath[100];
-static char pidfile[120];
+static char pidfile[128];
 static int remove_pidfile = 1;
 static bool daemonize = true;
 static bool log_syslog = true;
@@ -287,7 +288,7 @@ cmdline_set_pid(void *opaque __attribute__((unused)),
 				arg);
 			return 1;
 		}
-		strncpy(pidpath, arg, 100);
+		strlcpy(pidpath, arg, 100);
 	} else {
 		fprintf(stderr, "Error accessing provided pidfile path '%s': %m\n",
 			arg);
@@ -336,7 +337,7 @@ cmdline_set_zmq_config_ep(void *opaque __attribute__((unused)),
 				int opt_index __attribute__((unused)))
 {
 	if (arg)
-		strncpy(zmq_config_ep, arg, sizeof zmq_config_ep);
+		strlcpy(zmq_config_ep, arg, sizeof zmq_config_ep);
 	use_zmq_config = true;
 
 	return 0;
@@ -348,7 +349,7 @@ cmdline_set_zmq_port_control_ep(void *opaque __attribute__((unused)),
 				int opt_index __attribute__((unused)))
 {
 	if (arg)
-		strncpy(zmq_port_control_ep, arg, sizeof zmq_port_control_ep);
+		strlcpy(zmq_port_control_ep, arg, sizeof zmq_port_control_ep);
 	use_zmq_port_control = true;
 
 	return 0;
@@ -360,7 +361,7 @@ cmdline_set_zmq_stats_ep(void *opaque __attribute__((unused)),
 				int opt_index __attribute__((unused)))
 {
 	if (arg)
-		strncpy(zmq_stats_ep, arg, sizeof zmq_stats_ep);
+		strlcpy(zmq_stats_ep, arg, sizeof zmq_stats_ep);
 	use_zmq_stats = true;
 
 	return 0;
@@ -372,7 +373,7 @@ cmdline_set_zmq_core_sched_ep(void *opaque __attribute__((unused)),
 				int opt_index __attribute__((unused)))
 {
 	if (arg)
-		strncpy(zmq_core_sched_ep, arg, sizeof zmq_core_sched_ep);
+		strlcpy(zmq_core_sched_ep, arg, sizeof zmq_core_sched_ep);
 	use_zmq_stats = true;
 	use_zmq_core_sched = true;
 
@@ -718,7 +719,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	snprintf(pidfile, 120, "%s/%s.pid", pidpath, daemonname);
+	snprintf(pidfile, 128, "%s/%s.pid", pidpath, daemonname);
 
 	if (show_version) {
 		fprintf(stdout, "Virtio-forwarder version %s (%s)\n",

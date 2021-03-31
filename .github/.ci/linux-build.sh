@@ -1,19 +1,19 @@
 function install_package {
     if [ "$SUB_OS" = "none" ]; then
         sudo apt-get install -q -y python3 python3-pip python3-setuptools python3-wheel \
-            protobuf-compiler protobuf-c-compiler libprotobuf-c-dev libnuma-dev libzmq3-dev ninja-build
+            protobuf-compiler protobuf-c-compiler libprotobuf-c-dev libnuma-dev libzmq3-dev ninja-build libbsd-dev
     elif [ "$SUB_OS" = "centos:7" ]; then
         yum install -q -y epel-release sudo git gcc
         sudo yum install -q -y python3 python3-pip python3-setuptools python3-wheel \
-            protobuf-compiler protobuf-c-compiler protobuf-c-devel numactl-devel czmq-devel ninja-build
+            protobuf-compiler protobuf-c-compiler protobuf-c-devel numactl-devel czmq-devel ninja-build libbsd-devel
     elif [ "$SUB_OS" = "centos:8" ]; then
         dnf install -q -y epel-release sudo git gcc
         sudo dnf --enablerepo=powertools install -q -y protobuf-compiler protobuf-c-compiler protobuf-c-devel ninja-build
-        sudo dnf install -q -y python3 python3-pip python3-setuptools python3-wheel numactl-devel czmq-devel
+        sudo dnf install -q -y python3 python3-pip python3-setuptools python3-wheel numactl-devel czmq-devel libbsd-devel
     elif [[ "$SUB_OS" = "fedora"* ]]; then
         dnf install -q -y git gcc
         sudo dnf install -q -y python3 python3-pip python3-setuptools python3-wheel \
-            protobuf-compiler protobuf-c-compiler protobuf-c-devel ninja-build numactl-devel czmq-devel
+            protobuf-compiler protobuf-c-compiler protobuf-c-devel ninja-build numactl-devel czmq-devel libbsd-devel
     else
         echo "Not supported OS: $SUB_OS"
         exit 1

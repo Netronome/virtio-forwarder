@@ -35,6 +35,7 @@
 #define __MODULE__ "sriov"
 #include "log.h"
 
+#include <bsd/string.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -76,7 +77,7 @@ int get_VF_PCIE_from_netdev(const char *netdev, struct sriov_info *info) {
 		log_error("Could not extract domain:bus:device.function from cmd '%s'!", cmd);
 		return -1;
 	}
-	strncpy(info->dbdf, _dbdf, 20);
+	strlcpy(info->dbdf, _dbdf, 20);
 	log_debug("Got PCI addr '%s' for netdev '%s'", info->dbdf, netdev);
 	if (sscanf(_vf, "VF%hhu.%hhu", &nicbus, &vfnum) != 2) {
 		log_error("Could not extract VF number from cmd '%s'!", cmd);

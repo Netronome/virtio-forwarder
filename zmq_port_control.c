@@ -113,7 +113,7 @@ Virtioforwarder__PortControlRequest__to_str(
 
 	return ans;
 }
-#define Virtioforwarder__PortControlRequest__CCH_MAX 32 + \
+#define Virtioforwarder__PortControlRequest__CCH_MAX 128 + \
 	(1 + Virtioforwarder__PortControlRequest__PciAddress_CCH_MAX) * \
 	MAX_NUM_BOND_SLAVES
 

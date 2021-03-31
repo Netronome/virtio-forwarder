@@ -48,6 +48,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <string.h>
+#include <bsd/string.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <sched.h>
@@ -676,7 +677,7 @@ static int configure_dev_with_virtio(const char *pci_dbdf, dpdk_port_t port_id,
 	log_info("Added dpdk port %hhu to relay", port_id);
 	relay->vio.lm_pending = false;
 	relay->dpdk.dpdk_port = port_id;
-	strncpy(relay->dpdk.pci_dbdf, pci_dbdf, 20);
+	strlcpy(relay->dpdk.pci_dbdf, pci_dbdf, 20);
 	find_vf2virtio_cpu(relay);
 	relay->dpdk.state = dpdk_state;
 	relay->dpdk.is_bond = is_bond;
@@ -2194,7 +2195,7 @@ virtio_forwarder_get_stats(unsigned virtio_id, struct virtio_worker_stats *stats
 	/* If a relay does not have a vhost-user socket accociated with it
          * report NONE in stats output */
 	if (relay_ifname_map[virtio_id])
-		strncpy(stats->vhost_socket_name, relay_ifname_map[virtio_id],
+		strlcpy(stats->vhost_socket_name, relay_ifname_map[virtio_id],
 			sizeof(stats->vhost_socket_name));
 	else
 		strcpy(stats->vhost_socket_name, "NONE");
