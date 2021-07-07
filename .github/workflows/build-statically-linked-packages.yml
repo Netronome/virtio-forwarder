@@ -1,0 +1,137 @@
+name: build-statically-linked-packages
+
+on:
+  push:
+    branches:
+      # Only create statically linked packages on push events to these branches
+      - master
+      - 'release-*'
+    tags-ignore:
+      # Trigger the workflow on all tag pushes except "development" tags for
+      # example:
+      # 1.2.99, 1.3.99
+      - '*.99'
+
+jobs:
+  build-rpms:
+    name: Build RPM packages
+    runs-on: ubuntu-20.04
+    timeout-minutes: 90
+    env:
+      BUILDSCRIPT: ./.github/data/build_templates/template.sh
+    strategy:
+      fail-fast: false
+      matrix:
+        release: [
+                { "codename": "centos8" },
+          ]
+    container:
+      image: centos:${{ matrix.release.codename }}
+
+    steps:
+      - name: Install dependencies
+        run: |
+           dnf install -y epel-release dnf-plugins-core
+           dnf config-manager --set-enabled powertools
+           dnf install -y \
+           git wget gcc make protobuf-c-compiler protobuf-c-devel \
+           zeromq-devel protobuf-compiler numactl-devel meson     \
+           rpm-build python3-sphinx python3-sphinx_rtd_theme      \
+           libbsd-devel
+
+      # Avoid the default shallow clone here (with fetch-depth: 0) because the
+      # virtio-forwarder versioning scheme is dependant on finding the last tag
+      # with "git describe" to generate the current version.
+      - name: Checkout out repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set virtio-forwarder version
+        run: |
+          echo "viofwd_version=$(git describe)" >> $GITHUB_ENV
+
+      - name: Populate build script
+        run: sed -i "s/__MESON_TARGET__/rpm/g" $BUILDSCRIPT
+
+      - name: Run build script
+        run: bash $BUILDSCRIPT
+
+      # This will create artifacts that can be downloaded later in the
+      # publishing job. The "release-action" supports globbing of artifact
+      # paths so we can get away with appending the codename here to the
+      # artifact name
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: virtio-forwarder-static-${{ env.viofwd_version }}-${{ matrix.release.codename }}
+          path: ${{ github.workspace }}/*.rpm
+
+  build-debs:
+    name: Build DEB packages
+    runs-on: ubuntu-20.04
+    timeout-minutes: 90
+    env:
+      BUILDSCRIPT: ./.github/data/build_templates/template.sh
+    strategy:
+      fail-fast: false
+      matrix:
+        release: [
+                { "codename": "focal" },
+          ]
+    container:
+      image: ubuntu:${{ matrix.release.codename }}
+
+    steps:
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+           apt-get update
+           apt-get install -y \
+           git wget gcc make debhelper python3-minimal            \
+           protobuf-c-compiler libprotobuf-c-dev libzmq3-dev      \
+           protobuf-compiler python3-sphinx libnuma-dev           \
+           libxen-dev meson pkg-config build-essential            \
+           devscripts libbsd-dev
+
+      - name: Checkout out repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set virtio-forwarder version
+        run: |
+          echo "viofwd_version=$(git describe)" >> $GITHUB_ENV
+
+      - name: Populate build script
+        run: sed -i "s/__MESON_TARGET__/deb/g" $BUILDSCRIPT
+
+      - name: Run build script
+        run: bash $BUILDSCRIPT
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: virtio-forwarder-static-${{ env.viofwd_version }}-${{ matrix.release.codename }}
+          path: ${{ github.workspace }}/*.deb
+
+  publish-packages:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 90
+    needs: [build-rpms, build-debs]
+    # Only publish artifacts as a release if this push also included a tag
+    if: contains(github.ref, 'refs/tags/') == true
+
+    # If no artifact name is specified this action will download all the
+    # artifacts available
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+
+      - name: Publish artifacts as release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "./virtio-forwarder-*/*"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true
