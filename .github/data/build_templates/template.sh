@@ -62,6 +62,7 @@ echo "Disabling the following drivers: ${disable_list%,}"
 meson -Denable_kmods=false \
       -Dmax_ethports=64 \
       -Ddisable_drivers="${disable_list%,}" \
+      -Dmachine=default \
       build
 
 ninja install -C build && ldconfig
