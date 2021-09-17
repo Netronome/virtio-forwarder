@@ -172,11 +172,11 @@ cflags += '-D_GNU_SOURCE'
 cflags += '-mavx'
 
 # older versions of the dpdk pc file did not include the baseline architecture
-# set it to DPDK's old default (it has since been moved to corei7 in 17.08)
-# this can be dropped once support for DPDK < 18.11 is no longer necessary
+# set it to corei7. This can be dropped once support for DPDK < 18.11
+# is no longer necessary
 dpdk_cflags = dpdk.get_pkgconfig_variable('cflags')
 if host_machine.cpu_family().startswith('x86') and not dpdk_cflags.contains('-march')
-    cflags += '-march=core2'
+    cflags += '-march=corei7'
 endif
 
 sources = files('argv.c',
