@@ -1,18 +1,13 @@
 #!/bin/bash
 
-
-DPDK_URL=http://git.dpdk.org/dpdk-stable/snapshot/dpdk-stable-19.11.8.tar.gz
-
-# Change to the repo directory
-
+DPDK_STABLE="https://dpdk.org/git/dpdk-stable"
+STABLE_BRANCH="19.11"
 MESON_TARGET="__MESON_TARGET__"  # either 'deb' or 'rpm'
 
-# Compile DPDK using meson
-cd /tmp
-wget $DPDK_URL
-DPDK_DIR=$(tar -tf $(basename $DPDK_URL) | head -n1)
-tar -xf $(basename $DPDK_URL)
-cd $DPDK_DIR
+# Clone and checkout the correct dpdk-stable branch
+cd /usr/local/src
+git clone --depth=1 --single-branch --branch=$STABLE_BRANCH $DPDK_STABLE
+cd dpdk-stable
 
 # Switch to using the "enable_driver" option once it becomes available in
 # the stable version of DPDK to avoid the long driver exclude list
