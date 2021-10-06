@@ -1,0 +1,41 @@
+From 94ed3a96e2c4b0e3a5db99588869f09305059b90 Mon Sep 17 00:00:00 2001
+From: Heinrich Kuhn <heinrich.kuhn@corigine.com>
+Date: Wed, 6 Oct 2021 08:38:58 +0200
+Subject: [dpdk-stable] [PATCH] net/nfp: cancel delayed LSC work in port close
+ logic
+
+The link state change interrupt handler of the NFP PMD will delay the
+actual LSC work for a short period to ensure the link is stable. If the
+link of the port changes state and the port is closed immediately after
+the link event then a segmentation fault will occur. This happens
+because the delayed LSC work eventually triggers and this logic will try
+to access private port data that had been released when the port was
+closed.
+
+This patch is queued for DPDK stable:
+https://patchwork.dpdk.org/project/dpdk/patch/20211006064455.18114-1-heinrich.kuhn@corigine.com
+
+Signed-off-by: Heinrich Kuhn <heinrich.kuhn@corigine.com>
+Signed-off-by: Simon Horman <simon.horman@corigine.com>
+---
+ drivers/net/nfp/nfp_net.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/net/nfp/nfp_net.c b/drivers/net/nfp/nfp_net.c
+index f6eca00878..da44f8345c 100644
+--- a/drivers/net/nfp/nfp_net.c
++++ b/drivers/net/nfp/nfp_net.c
+@@ -905,6 +905,10 @@ nfp_net_close(struct rte_eth_dev *dev)
+ 				     nfp_net_dev_interrupt_handler,
+ 				     (void *)dev);
+ 
++	/* Cancel possible impending LSC work here before releasing the port*/
++	rte_eal_alarm_cancel(nfp_net_dev_interrupt_delayed_handler,
++			     (void *)dev);
++
+ 	/*
+ 	 * The ixgbe PMD driver disables the pcie master on the
+ 	 * device. The i40e does not...
+-- 
+2.30.1 (Apple Git-130)
+
