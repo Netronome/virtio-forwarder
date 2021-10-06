@@ -9,6 +9,32 @@ cd /usr/local/src
 git clone --depth=1 --single-branch --branch=$STABLE_BRANCH $DPDK_STABLE
 cd dpdk-stable
 
+# Attempt to apply any stable patches present
+PATCHES_DIR=$GITHUB_WORKSPACE/.github/data/dpdk_patches
+
+for patch in $PATCHES_DIR/*.patch
+do
+    # Handle the case where the *.patch glob won't expand,
+    # for example when no patches are present. Check if
+    # the file exists first
+    [ -e $patch ] || continue
+
+    # EMAIL environment variable here is not important
+    # git am just needs someone as the committer
+    EMAIL=root@localhost git am $patch > /dev/null 2>&1
+    if [ $? -eq 0 ]
+    then
+        echo "Successfully applied $patch"
+    else
+        # Consider this a hard error and exit here.
+        # Patches being applied here should not be
+        # considered optional
+        git am --abort
+        echo "WARNING: Could not apply $patch"
+        exit 1
+    fi
+done
+
 # Switch to using the "enable_driver" option once it becomes available in
 # the stable version of DPDK to avoid the long driver exclude list
 disable_drv_list=("net/af_packet"

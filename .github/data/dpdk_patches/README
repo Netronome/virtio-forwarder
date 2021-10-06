@@ -1,0 +1,9 @@
+This directory would normally be empty (or close to empty). In some
+cases however it makes sense to apply patches to the DPDK codebase
+before compiling virtio-forwarder
+
+Patches included in the directory should be in the "git am" format. If
+a specific order is desired patches should be numbered accordingly:
+
+0001-first-patch-to-be-applied.patch
+0002-second-patch-to-be-applied.patch
