@@ -34,6 +34,9 @@ project('virtio-forwarder', 'C',
     meson_version: '>= 0.45.1'
 )
 
+# Generate a compiler object
+cc = meson.get_compiler('c')
+
 # Attempt to detect the Distro we are building on
 vf_install_dir = ''
 rhel_family = false
@@ -198,8 +201,10 @@ sources = files('argv.c',
     'zmq_stats.c',
     'zmq_core_sched.c',)
 
+# Explicitly link to the bond PMD here but only if it is actually available
 if not get_option('static')
-  if dpdk.version().version_compare('>=20.11')
+  if cc.has_header('dpdk/rte_eth_bond.h')
+    message('Explicitly linking to rte_net_bond')
     dpdk = declare_dependency(dependencies : dpdk, link_args : '-lrte_net_bond')
   endif
 endif
