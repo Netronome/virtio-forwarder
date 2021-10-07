@@ -39,13 +39,7 @@
 #include <rte_eal.h>
 #include <rte_ethdev.h>
 
-#if RTE_MAX_ETHPORTS < 60
-#warning RTE_MAX_ETHPORTS in DPDK does not support sufficient VFs!
 #define MAX_RELAYS RTE_MAX_ETHPORTS
-#else
-#define MAX_RELAYS 60
-#endif
-
 #define MAX_NUM_BOND_SLAVES 8
 
 

@@ -132,11 +132,8 @@ int dpdk_eal_initialize(const struct dpdk_conf *conf)
 	if (ret < 0) {
 		return ret;
 	}
-	log_debug("DPDK RTE_MAX_ETHPORTS=%u", RTE_MAX_ETHPORTS);
-	if (RTE_MAX_ETHPORTS < 60) {
-		log_warning("Maximum relays is %u, increase RTE_MAX_ETHPORTS in DPDK if more are required",
-			RTE_MAX_ETHPORTS);
-	}
+	log_info("Maximum relays is %u, increase RTE_MAX_ETHPORTS in DPDK if more are required",
+		  RTE_MAX_ETHPORTS);
 
 	return 0;
 }
