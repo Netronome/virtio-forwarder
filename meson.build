@@ -112,8 +112,24 @@ endif
 # to attempt to detect what libraries are installed and generate a
 # custom libdpdk.pc.
 if rhel_family
-    libdpdk_pc = join_paths('/usr/local/lib64/pkgconfig/' , 'libdpdk.pc')
-    if (run_command('[', '-e', libdpdk_pc, ']').returncode() != 0)
+    found_libdpdk_pc = ''
+    libdpdk_pc_paths = ['/usr/lib64/pkgconfig/libdpdk.pc',
+                        '/usr/local/lib64/pkgconfig/libdpdk.pc']
+
+    # Search for a libdpdk.pc file in both /usr/local/lib64 and /usr/lib64
+    # to cover the case where DPDK was installed either as a shared library
+    # from source or by means of a upstream package
+    foreach libdpdk_pc : libdpdk_pc_paths
+        if (run_command('[', '-e', libdpdk_pc, ']').returncode() != 0)
+            continue
+        else
+            found_libdpdk_pc = libdpdk_pc
+	    break
+        endif
+    endforeach
+
+    # Attempt to generate a libdpdk.pc file if one was not found
+    if found_libdpdk_pc == ''
         message('Creating libdpdk.pc file')
         pkgconfig_builder = find_program('pkg_config_builder.py')
         r = run_command(pkgconfig_builder)
@@ -124,7 +140,7 @@ if rhel_family
         endif
     else
         # Use the libdpdk.pc found on the system
-        message('Using libdpdk.pc located at: ' + libdpdk_pc)
+        message('Using libdpdk.pc located at: ' + found_libdpdk_pc)
     endif
 endif
 
