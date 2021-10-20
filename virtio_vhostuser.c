@@ -796,11 +796,12 @@ exit_deconfigure_pair:
 	return 5;
 }
 
-int virtio_remove_sock_dev_pair(const char *vhost_path, const char *dev,
+int virtio_remove_sock_dev_pair(const char *vhost_path, char *dev,
 			bool conditional)
 {
 	int err;
 	int relay_id;
+	vio_vf_relay_t *relay;
 
 	log_debug("Got virtio_remove_sock_dev_pair(%s, %s, %s)", vhost_path,
 		dev, conditional ? "true" : "false");
@@ -812,11 +813,28 @@ int virtio_remove_sock_dev_pair(const char *vhost_path, const char *dev,
 		return 1;
 	}
 
-	/* Check that the device <-> relay pairing is correct. */
-	if (!virtio_relay_has_device(relay_id, dev)) {
-		log_error("The relay instance for socket %s has no device named %s. Not removing pair",
-			vhost_path, dev);
-		return 2;
+	/* If no PCI address is passed to this function, target the PCI device
+	 * associated with this relay. Since there is a one-to-one mapping between
+	 * relay, VF and vhost-user socket this is safe to do. If multi-vhost
+	 * support is required (virtio-forwarder multiplex) then this
+	 * assumption will no longer be valid.
+	 */
+	if (strlen(dev) == 0) {
+		relay = get_relay_from_id(relay_id);
+		if (relay == NULL) {
+			log_error("Cloud not find relay for relay_id: %d", relay_id);
+			return 1;
+		}
+		strcpy(dev, relay->dpdk.pci_dbdf);
+		log_warning("PCI DBDF not passed. Assuming device to be removed is: %s",
+			    dev);
+	} else {
+		/* Check that the device <-> relay pairing is correct. */
+		if (!virtio_relay_has_device(relay_id, dev)) {
+			log_error("The relay instance for socket %s has no device named %s. Not removing pair",
+				   vhost_path, dev);
+			return 2;
+		}
 	}
 
 	/* Remove virtio: VM may or may not have shutdown at this point.

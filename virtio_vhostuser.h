@@ -80,7 +80,7 @@ int virtio_add_sock_dev_pair(const char *vhost_path,
 			char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME_MAX_LEN],
 			unsigned num_slaves, char *name, uint8_t mode,
 			bool conditional);
-int virtio_remove_sock_dev_pair(const char *vhost_path, const char *dev,
+int virtio_remove_sock_dev_pair(const char *vhost_path, char *dev,
 			bool conditional);
 
 #endif // _VIRTIO_VHOSTUSER_THREAD
