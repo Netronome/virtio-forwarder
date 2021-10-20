@@ -76,6 +76,15 @@ static uint64_t worker_core_bitmap;
 static vio_vf_relay_t virtio_vf_relays[MAX_RELAYS];
 static relay_prev_counters_t relay_prev_counters[MAX_RELAYS];
 
+vio_vf_relay_t * get_relay_from_id(unsigned id) {
+	if (id >= MAX_RELAYS) {
+		log_error("Invalid relay ID passed");
+		return NULL;
+	}
+
+	return &virtio_vf_relays[id];
+}
+
 static bool have_worker_on_node(int node)
 {
 	cpuinfo_t *c = get_cpuinfo();

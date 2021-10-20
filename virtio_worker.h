@@ -376,4 +376,11 @@ int virtio_forwarder_remove_vf(const char *pci_dbdf, unsigned virtio_id);
 
 void virtio_forwarders_print_stats(int ptmfd);
 
+/**
+ * @brief Helper function to get a relay instance given a relay_id
+ * @param id relay ID associated with the relay instance
+ * @return A pointer to the correct relay (vio_vf_relay_t)
+ */
+vio_vf_relay_t * get_relay_from_id(unsigned id);
+
 #endif // _VIRTIO_WORKER_THREAD
