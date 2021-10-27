@@ -80,10 +80,10 @@ printf -v disable_list '%s,' "${disable_drv_list[@]}"
 echo "Disabling the following drivers: ${disable_list%,}"
 
 # Build DPDK
-meson -Denable_kmods=false \
+CFLAGS="-mavx -msse -msse4.2" meson -Denable_kmods=false \
       -Dmax_ethports=64 \
       -Ddisable_drivers="${disable_list%,}" \
-      -Dmachine=default \
+      -Dmachine=corei7 \
       build
 
 ninja install -C build && ldconfig
