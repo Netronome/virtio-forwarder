@@ -146,10 +146,6 @@ validate_PortControlRequest(Virtioforwarder__PortControlRequest const *pc)
 	}
 	if (pc->op == VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__ADD_SOCK ||
 			pc->op == VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__REMOVE_SOCK) {
-		if (pc->vhost_path == NULL) {
-			log_error("The vhostuser socket path is required for socket add/remove operations.");
-			return false;
-		}
 		if (pc->has_virtio_id)
 			log_warning("The virtio id will be ignored for socket pair operations.");
 	}

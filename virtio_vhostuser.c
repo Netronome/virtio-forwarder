@@ -800,16 +800,34 @@ int virtio_remove_sock_dev_pair(const char *vhost_path, char *dev,
 			bool conditional)
 {
 	int err;
-	int relay_id;
+	int relay_id = -1;
 	vio_vf_relay_t *relay;
+	const char *path;
 
-	log_debug("Got virtio_remove_sock_dev_pair(%s, %s, %s)", vhost_path,
-		dev, conditional ? "true" : "false");
+	if (!vhost_path && strlen(dev) == 0) {
+		log_error("Either pci-addr or vhost-path parameter should be passed!");
+		return -1;
+	}
 
-	relay_id = get_relay_for_sock(vhost_path);
+	/* If no vhost-path is passed, attempt to get the vhost_path
+	   and relay_id given the PCI address passed to the function
+	*/
+	if (vhost_path) {
+		relay_id = get_relay_for_sock(vhost_path);
+		path = vhost_path;
+	} else {
+		for (int i=0; i<MAX_RELAYS; ++i) {
+			relay = get_relay_from_id(i);
+			if (relay && !strcmp(relay->dpdk.pci_dbdf, dev)) {
+				path = relay_ifname_map[i];
+				relay_id = i;
+				break;
+			}
+		}
+	}
+
 	if (relay_id < 0) {
-		log_error("Could not get relay id for vhostuser fd %s!",
-			vhost_path);
+		log_error("Could not get relay id!");
 		return 1;
 	}
 
@@ -832,10 +850,13 @@ int virtio_remove_sock_dev_pair(const char *vhost_path, char *dev,
 		/* Check that the device <-> relay pairing is correct. */
 		if (!virtio_relay_has_device(relay_id, dev)) {
 			log_error("The relay instance for socket %s has no device named %s. Not removing pair",
-				   vhost_path, dev);
+				   path, dev);
 			return 2;
 		}
 	}
+
+	log_debug("Got virtio_remove_sock_dev_pair(%s, %s, %s)", path,
+		dev, conditional ? "true" : "false");
 
 	/* Remove virtio: VM may or may not have shutdown at this point.
 	 * Therefore, remove virtio manually to cater for case where the device
@@ -843,10 +864,10 @@ int virtio_remove_sock_dev_pair(const char *vhost_path, char *dev,
 	virtio_forwarder_remove_virtio(relay_id);
 
 	/* Deregister socket. */
-	err = deregister_socket(vhost_path);
+	err = deregister_socket(path);
 	if (err != 0) {
 		log_error("deregister_socket(%s) failed with error %d",
-			vhost_path, err);
+			path, err);
 		return 3;
 	}
 
