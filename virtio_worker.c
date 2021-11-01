@@ -913,6 +913,7 @@ static inline uint32_t calc_eth_header_hash(struct rte_ether_hdr *eth_hdr)
 	struct rte_ipv4_hdr *ipv4_h;
 	uint32_t buf[16];
 	uint32_t hashwords=0;
+	const unsigned int IPV6_HDR_LEN = 40;
 
 	if (likely(eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))) {
 		ipv4_h = (struct rte_ipv4_hdr *)(eth_hdr + 1);
@@ -934,15 +935,36 @@ static inline uint32_t calc_eth_header_hash(struct rte_ether_hdr *eth_hdr)
 		uint32_t *p;
 		ipv6_h = (struct rte_ipv6_hdr *)(eth_hdr + 1);
 		p = (uint32_t*)(ipv6_h->src_addr);
+		/* ipv6 source addr */
 		buf[hashwords++] = *(p++);
 		buf[hashwords++] = *(p++);
 		buf[hashwords++] = *(p++);
 		buf[hashwords++] = *(p++);
+
+		/* ipv6 destination addr */
 		buf[hashwords++] = *(p++);
 		buf[hashwords++] = *(p++);
 		buf[hashwords++] = *(p++);
 		buf[hashwords++] = *(p++);
+
+		/* Protocol type */
 		buf[hashwords++] = ipv6_h->proto;
+
+		/* Now L4 source and destination */
+		if (likely(ipv6_h->proto == IPPROTO_TCP ||
+				ipv6_h->proto == IPPROTO_UDP ||
+				ipv6_h->proto == IPPROTO_SCTP)) {
+			/* A cast to struct rte_udp_hdr is used here for the
+			 * TCP, UDP and SCTP case because the first 32 bits
+			 * of these L4 protocols are always the source and
+			 * destination ports
+			 */
+			udp_h = (struct rte_udp_hdr *)((unsigned char *)ipv6_h +
+					IPV6_HDR_LEN);
+			buf[hashwords++] = (udp_h->dst_port<<16) +
+						udp_h->src_port;
+		}
+
 	} else {
 		/* Non-IPv4 ethernet. */
 		buf[hashwords++] = *((uint32_t*)(eth_hdr)+0);
