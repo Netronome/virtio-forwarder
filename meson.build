@@ -221,7 +221,13 @@ sources = files('argv.c',
 if not get_option('static')
   if cc.has_header('dpdk/rte_eth_bond.h')
     message('Explicitly linking to rte_net_bond')
-    dpdk = declare_dependency(dependencies : dpdk, link_args : '-lrte_net_bond')
+    if debian_family
+      dpdk = declare_dependency(dependencies : dpdk,
+                                link_args : '-lrte_pmd_bond')
+    elif rhel_family
+      dpdk = declare_dependency(dependencies : dpdk,
+                                link_args : '-lrte_net_bond')
+    endif
   endif
 endif
 
