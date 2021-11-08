@@ -742,7 +742,7 @@ error_bond_deconfigure:
 #else
 	log_warning("Bonding not supported for this version of DPDK");
 
-	return 0;
+	return -1;
 #endif
 }
 
