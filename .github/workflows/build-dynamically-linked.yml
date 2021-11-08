@@ -1,0 +1,147 @@
+name: build-dynamically-linked
+
+on: [push]
+
+jobs:
+  build-centos:
+    name: Build centOS
+    runs-on: ubuntu-20.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        release: [
+                { "codename": "centos7" },
+                { "codename": "centos8" },
+          ]
+    container:
+      image: centos:${{ matrix.release.codename }}
+
+    steps:
+      - name: Install dependencies
+        if: matrix.release.codename == 'centos7'
+        # Endpoint repo is added here to install a newer version of git. Runner
+        # checkout issues have been observed with git < 2.18
+        run: |
+           yum install -y epel-release
+           yum -y install \
+           https://packages.endpoint.com/rhel/7/os/x86_64/endpoint-repo-1.9-1.x86_64.rpm
+           yum install -y \
+           git wget gcc make meson protobuf-c-compiler protobuf-c-devel \
+           protobuf-compiler zeromq-devel numactl-devel libbsd-devel    \
+           protobuf-python python2-zmq python-devel python-sphinx       \
+           python36-jinja2 python-sphinx_rtd_theme libbsd-devel dpdk    \
+           dpdk-devel
+
+      - name: Install dependencies
+        if: matrix.release.codename == 'centos8'
+        run: |
+           dnf install -y epel-release dnf-plugins-core
+           dnf config-manager --set-enabled powertools
+           dnf install -y \
+           git wget gcc make meson protobuf-c-compiler protobuf-c-devel \
+           protobuf-compiler zeromq-devel numactl-devel libbsd-devel    \
+           python3-protobuf python3-zmq python3-devel python3-sphinx    \
+           python3-sphinx_rtd_theme libbsd-devel dpdk dpdk-devel
+
+      # Avoid the default shallow clone here (with fetch-depth: 0) because the
+      # virtio-forwarder versioning scheme is dependant on finding the last tag
+      # with "git describe" to generate the current version.
+      - name: Checkout out repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # Add the custom PKG_CONFIG_PATH here in case pkg_config_builder.py
+      # created a libdpdk.pc in /tmp/pkgconfig
+      - name: Build virtio-forwarder
+        run:
+          PKG_CONFIG_PATH=/tmp/pkgconfig meson build && ninja -C build
+
+  build-fedora:
+    name: Build Fedora
+    runs-on: ubuntu-20.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        release: [
+                { "codename": "33" },
+                { "codename": "34" },
+          ]
+    container:
+      image: fedora:${{ matrix.release.codename }}
+
+    steps:
+      - name: Install dependencies
+        run: |
+           dnf install -y \
+           git wget gcc make protobuf-c-compiler protobuf-c-devel \
+           zeromq-devel protobuf-compiler numactl-devel           \
+           libbsd-devel meson python3-protobuf python-zmq         \
+           python-devel python-sphinx python-sphinx_rtd_theme     \
+           dpdk dpdk-devel
+
+      - name: Checkout out repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Build virtio-forwarder
+        run:
+          meson build && ninja -C build
+
+  build-ubuntu:
+    name: Build Ubuntu
+    runs-on: ubuntu-20.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        release: [
+                { "codename": "bionic" },
+                { "codename": "focal" },
+          ]
+    container:
+      image: ubuntu:${{ matrix.release.codename }}
+
+    steps:
+      - name: Install dependencies
+        if: matrix.release.codename == 'bionic'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        # git-core PPA is added here to install a newer version of git. Runner
+        # checkout issues have been observed with git < 2.18
+        run: |
+           apt-get update
+           apt-get install -y software-properties-common
+           add-apt-repository ppa:git-core/ppa
+           apt-get install -y \
+           git wget gcc make debhelper python3-minimal            \
+           protobuf-c-compiler libprotobuf-c-dev libzmq3-dev      \
+           protobuf-compiler python3-sphinx libnuma-dev           \
+           libxen-dev meson pkg-config build-essential            \
+           devscripts libbsd-dev dpdk dpdk-dev
+
+      - name: Install dependencies
+        if: matrix.release.codename == 'focal'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+           apt-get update
+           apt-get install -y \
+           git wget gcc make debhelper python3-minimal            \
+           protobuf-c-compiler libprotobuf-c-dev libzmq3-dev      \
+           protobuf-compiler python3-sphinx libnuma-dev           \
+           libxen-dev meson pkg-config build-essential            \
+           devscripts libbsd-dev dpdk dpdk-dev
+
+      - name: Checkout out repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Build virtio-forwarder
+        run:
+          meson build && ninja -C build
+
