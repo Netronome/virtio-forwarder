@@ -22,8 +22,17 @@ Requirements
   QEMU command line VMs don't require libvirt)
 - 2M hugepages must be configured in Linux, a corresponding hugetlbfs mountpoint
   must exist, and at least 1375 hugepages must be free for use by virtio-forwarder.
-- The SR-IOV VFs added to the relay must be bound to the igb_uio driver on the
+- The SR-IOV VFs added to the relay must be bound to the vfio-pci driver on the
   host.
+
+.. note::
+
+	the vfio driver has been integrated into linux kernel since kernel version 3.6.
+	The module can be inserted as follows:
+
+.. code:: bash
+
+	modprobe vfio-pci
 
 Hugepages
 =========
@@ -31,8 +40,9 @@ virtio-forwarder requires 2M hugepages and QEMU/KVM performs better with 1G
 hugepages. To set up the system for use with libvirt, QEMU and virtio-forwarder, the
 following should be added to the Linux kernel command line parameters::
 
-	hugepagesz=2M hugepages=1375 default_hugepagesz=1G hugepagesz=1G
-	hugepages=8
+	default_hugepagesz=2M hugepagesz=2M hugepages=1375
+	hugepagesz=1G hugepages=8
+
 
 The following could be done after each boot:
 
@@ -72,8 +82,8 @@ the correct permissions in order to create the necessary per-VM handles:
 
 	mkdir /dev/hugepages-1G/libvirt
 	mkdir /dev/hugepages/libvirt
-	chown [libvirt-]qemu:kvm -R /dev/hugepages-1G/libvirt
-	chown [libvirt-]qemu:kvm -R /dev/hugepages/libvirt
+	chown libvirt-qemu:kvm -R /dev/hugepages-1G/libvirt
+	chown libvirt-qemu:kvm -R /dev/hugepages/libvirt
 
 .. note::
 
@@ -85,6 +95,10 @@ the correct permissions in order to create the necessary per-VM handles:
 
 	After these mounts have been prepared, the libvirt daemon will probably
 	need to be restarted.
+
+.. code:: bash
+
+	systemctl restart libvirtd
 
 Access Control Policies
 =======================
@@ -117,7 +131,8 @@ the relay:
 
 .. code:: bash
 
-	yum install policycoreutils-python
+	yum install policycoreutils-python          # Centos 7
+	yum install policycoreutils-python-utils    # Centos 8
 	semanage permissive -a svirt_t
 
 Installation
@@ -128,16 +143,20 @@ applicable repository and launch the appropriate package manager:
 RHEL/CentOS
 -----------
 
+.. note::
+
+	For RHEL/CentOS, the epel repo must be enabled to satisfy the required
+	dependencies.
+
+.. code:: bash
+
+	yum install epel-release
+
 .. code:: bash
 
 	yum install yum-plugin-copr
 	yum copr enable netronome/virtio-forwarder
 	yum install virtio-forwarder
-
-.. note::
-
-	For RHEL/CentOS, the epel repo must be enabled to satisfy the required
-	dependencies.
 
 Debian/Ubuntu
 -------------
@@ -206,22 +225,17 @@ following table lists a subset of the available options and their use:
 	  - Valid values
 	  - Default
 	* - | VIRTIOFWD_CPU_MASK
-	    | CPUs to use for worker threads: either comma separated integers or,
-	      hex bitmap starting with 0x.
+	    | CPUs to use for worker threads: either comma
+	    | separated integers or, hex bitmap starting with 0x.
 	  - 0 - number of host CPU
 	  - 1,2
 	* - | VIRTIOFWD_LOG_LEVEL
 	    | Log threshold 0-7 (least to most verbose).
 	  - 0-7
 	  - 6
-	* - | VIRTIOFWD_OVSDB_SOCK_PATH
-	    | Path to the ovsdb socket file used for port control.
-	  - System path
-	  - /usr/local/var/run/
-	    openvswitch/db.sock
 	* - | VIRTIOFWD_HUGETLBFS_MOUNT_POINT
 	    | Mount path to hugepages for vhost-user communication with VMs.
-	      This must match the path configured for libvirt/QEMU.
+	    | This must match the path configured for libvirt/QEMU.
 	  - System path
 	  - /mnt/huge
 	* - | VIRTIOFWD_SOCKET_OWNER
@@ -234,28 +248,33 @@ following table lists a subset of the available options and their use:
 	  - kvm
 	* - | VIO4WD_CORE_SCHED_ENABLE
 	    | Use dynamic CPU load balancing. Toggle flag to enable the CPU
-	      migration API to be exposed. vio4wd_core_scheduler requires this
-	      option to function.
+	    | migration API to be exposed. vio4wd_core_scheduler requires this
+	    | option to function.
 	  - true or false
 	  - false
 	* - | VIRTIOFWD_CPU_PINS
 	    | Relay CPU pinnings. A semicolon-delimited list of strings
-	      specifying which CPU(s) to use for the specified relay instances.
+	    | specifying which CPU(s) to use for the specified relay instances.
 	  - <vf>:<cpu>[,<cpu>]
 	  - None
 	* - | VIRTIOFWD_DYNAMIC_SOCKETS
 	    | Enable dynamic sockets. virtio-forwarder will not create or listen
-	      to any sockets when dynamic sockets are enabled. Instead, socket
-	      registration/deregistration must ensue through the ZMQ port control
-	      client.
+	    | to any sockets at initialization while VIRTIOFWD_DYNAMIC_SOCKETS
+	    | enable. Instead, socket registration/deregistration must ensue through
+	    | the ZMQ port control client.
 	  - true or false
 	  - false
+	* - | VIRTIOFWD_VHOST_CLIENT
+	    | Enable vhost client mode. vhost-user will no longer create sock files
+	    | while VIRTIOFWD_VHOST_CLIENT enable, and will actively connect to the
+	    | sock files created by server mode virtio device.
+	  - true or false
+	  - true
 
 Adding VF Ports to Virtio-forwarder
 ===================================
 virtio-forwarder implements different methods for the addition and removal of
-VFs and bonds. Depending on the use case, one of the following may be
-appropriate:
+VFs. Depending on the use case, one of the following may be appropriate:
 
 * **ZeroMQ port control** for the purpose of manual device and socket management
   at run-time. Run ``/usr/lib[64]/virtio-forwarder/virtioforwarder_port_control.py -h``
@@ -265,9 +284,9 @@ appropriate:
 
   The port control client is the preferred device management tool, and is the
   only utility that can exercise all the device related features of
-  virtio-forwarder. Particularly, bond creation/deletion, and dynamic socket
-  registration/deregistration are only exposed to the port control client.
-  The examples below demonstrate the different modes of operation:
+  virtio-forwarder. Particularly, dynamic socket registration/deregistration
+  are only exposed to the port control client. The examples below demonstrate
+  the different modes of operation:
 
   - Add VF
   	.. code:: bash
@@ -281,37 +300,20 @@ appropriate:
   	  virtioforwarder_port_control.py remove --virtio-id=<ID> \
   	  --pci-addr=<PCI_ADDR>
 
-  - Add bond
-  	.. code:: bash
-
-  	  virtioforwarder_port_control.py add --virtio-id=<ID> \
-  	  --name=<BOND_NAME> --pci-addr=<PCI_ADDR> --pci-addr=<PCI_ADDR> \
-  	  [--mode=<MODE>]
-
-  - Remove bond
-  	.. code:: bash
-
-  	  virtioforwarder_port_control.py remove --virtio-id=<ID> \
-	  --name=<BOND_NAME>
-
   - Add device <-> vhost-user socket pair
   	.. code:: bash
 
   	  virtioforwarder_port_control.py add_sock \
-  	  --vhost-path=</path/to/vhostuser.sock> --pci-addr=<PCI_ADDR> \
-  	  [--pci-addr=<PCI_ADDR> --name=<BOND_NAME> [--mode=<MODE>]]
+  	  --vhost-path=</path/to/vhostuser.sock> --pci-addr=<PCI_ADDR>
 
   - Remove device <-> vhost-user socket pair
   	.. code:: bash
 
   	  virtioforwarder_port_control.py remove_sock \
-  	  --vhost-path=</path/to/vhostuser.sock> \
-  	  (--pci-addr=<PCI_ADDR>|--name=<BOND_NAME>)
+  	  --vhost-path=</path/to/vhostuser.sock> --pci-addr=<PCI_ADDR>
 
-  .. note::
+.. note::
 
-  	* A bond operation is assumed when multiple PCI addresses are provided.
-  	* Bond names are required to start with `net_bonding`.
   	* Socket operations only apply if virtio-forwarder was started with the
 	  ``VIRTIOFWD_DYNAMIC_SOCKETS`` option enabled.
 
@@ -325,56 +327,12 @@ appropriate:
   	- VIRTIOFWD_STATIC_VFS=(0000:05:08.1=1)
   	- VIRTIOFWD_STATIC_VFS=(0000:05:08.1=1 0000:05:08.2=2 0000:05:08.3=3)
 
-* **OVSDB monitor:** The ovs-vsctl command manipulates the OVSDB, which is monitored
-  for changes by virtio-forwarder.  To add a VF to the virtio-forwarder, the ovs-vsctl
-  command can be used with a special external_ids value containing an indication
-  to use the relay. The bridge name br-virtio in this example is arbitrary, any
-  bridge name may be used:
-
-  	.. code:: bash
-
-  		ovs-vsctl add-port br-virtio eth100 -- set interface \
-  		eth100 external_ids:virtio_forwarder=1
-
-  Note that the ports in the OVSDB remain configured across OvS restarts, and
-  when virtio-forwarder starts it will find the initial list of ports with
-  associated virtio-forwarder indications and recreate the necessary associations.
-
-  Changing an interface with no virtio-forwarder indication to one with a virtio-
-  forwarder indication, or changing one with a virtio-forwarder indication to one
-  without a virtio-forwarder indication also works. e.g.
-
-  	.. code:: bash
-
-  		# add to OvS bridge without virtio-forwarder (ignored by virtio-forwarder)
-  		ovs-vsctl add-port br-virtio eth100
-  		# add virtio-forwarder (detected by virtio-forwarder)
-  		ovs-vsctl set interface eth100 external_ids:virtio_forwarder=1
-  		# remove virtio-forwarder (detected by virtio-forwarder and removed from
-  		# relay, but remains on OvS bridge)
-  		ovs-vsctl remove interface eth100 external_ids virtio_forwarder
-
-  The externals_ids of a particular interface can be viewed with ovs-vsctl as
-  follows:
-
-  	.. code:: bash
-
-  		ovs-vsctl list interface eth100 | grep external_ids
-
-  A list of all the interfaces with external_ids can be queried from OVSDB:
-
-  	.. code:: bash
-
-  		ovsdb-client --pretty -f list dump Interface name external_ids | \
-  		grep -A2 -E "external_ids.*: {.+}"
-
-* **Inter-process communication (IPC)** which implements a file monitor for VF
-  management. Set ``VIRTIOFWD_IPC_PORT_CONTROL`` in the configuration file to
-  non-null to enable.
-
 .. note::
 
-	ZMQ, OVSDB and IPC port control are mutually exclusive.
+	usually, the static VF method is used to reduce the cumbersome add and delete
+	pci operations when VIRTIOFWD_DYNAMIC_SOCKETS is not enabled; Instead, the
+	ZeroMQ port control method is used to increase flexibility while the program
+	is running.
 
 .. warning::
 
