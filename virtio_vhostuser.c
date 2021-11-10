@@ -729,6 +729,11 @@ int virtio_add_sock_dev_pair(const char *vhost_path,
 	dpdk_port_t port_id;
 #endif
 
+	if (!vhost_path) {
+		log_error("vhost-path has to be specified when adding a socket pair");
+		return -1;
+	}
+
 	dev = num_slaves == 1 ? slave_dbdfs[0] : name;
 #if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
 	if (rte_eth_dev_get_port_by_name(dev, &port_id) == 0) {
