@@ -41,6 +41,7 @@ message PortControlRequest {
         REMOVE = 1;
         ADD_SOCK = 2;
         REMOVE_SOCK = 3;
+        QUERY_PCI = 4;
     }
 
     required Op op = 1;

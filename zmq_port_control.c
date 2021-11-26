@@ -150,6 +150,12 @@ validate_PortControlRequest(Virtioforwarder__PortControlRequest const *pc)
 			log_warning("The virtio id will be ignored for socket pair operations.");
 	}
 
+	if (pc->op == VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__QUERY_PCI &&
+			pc->vhost_path == NULL) {
+		log_error("PCI query requires a vhost-user socket path");
+		return false;
+	}
+
 	return true;
 }
 
@@ -200,6 +206,19 @@ port_control_handle_remove_socket(Virtioforwarder__PortControlResponse *response
 		virtio_remove_sock_dev_pair(
 			cfg->vhost_path,
 			name == NULL ? cfg->dbdf_addrs[0] : name, conditional
+		)
+	);
+}
+
+static void
+port_control_handle_query_pci(Virtioforwarder__PortControlResponse *response,
+			struct port_control_req_buffer *cfg)
+{
+	printf("In handle_query_pci");
+	handle_PortControlRequest_set_error_code(
+		response, "virtio_query_pci()",
+		virtio_query_pci(
+			response, cfg->vhost_path
 		)
 	);
 }
@@ -333,6 +352,10 @@ handle_PortControlRequest(
 			port_control_handle_remove_socket(&response, &b,
 						pc->n_pci_addrs == 1 ? NULL :
 						pc->name, conditional);
+			break;
+
+		case VIRTIOFORWARDER__PORT_CONTROL_REQUEST__OP__QUERY_PCI:
+			port_control_handle_query_pci(&response, &b);
 			break;
 
 		default:

@@ -39,6 +39,7 @@
 #include <stdbool.h>
 #include <bsd/string.h>
 #include "virtio_vhostuser.h"
+#include "virtioforwarder.pb-c.h"
 #define __MODULE__ "virtio_vhostuser"
 #include "log.h"
 #include "virtio_worker.h"
@@ -799,6 +800,46 @@ exit_deconfigure_pair:
 			err);
 
 	return 5;
+}
+
+int virtio_query_pci(Virtioforwarder__PortControlResponse *response,
+		     const char *vhost_path)
+{
+	int relay_id = -1;
+	vio_vf_relay_t *relay;
+
+	if (!vhost_path) {
+		// This should never happen because the zmq logic checks for
+		// this case too
+		log_error("vhost path not passed to virtio_query_pci");
+		return EINVAL;
+	}
+
+	relay_id = get_relay_for_sock(vhost_path);
+
+	if (relay_id < 0) {
+		log_error("Could not find relay associated with %s",
+			vhost_path);
+		return ENOENT;
+	}
+
+	log_debug("query PCI for relay number: %d", relay_id);
+
+	relay = get_relay_from_id(relay_id);
+	if (relay == NULL) {
+		// This shouldn't happen but gaurd against it here anyway
+		log_error("Could not find relay instance with ID: %d",
+			relay_id);
+		return ENOENT;
+	}
+
+	log_debug("Got virtio_query_pci(*response, %s)", vhost_path);
+
+	// Just set the query_string pointer to the pci_dbdf pointer in the
+	// relay struct
+	response->query_string = relay->dpdk.pci_dbdf;
+
+	return 0;
 }
 
 int virtio_remove_sock_dev_pair(const char *vhost_path, char *dev,

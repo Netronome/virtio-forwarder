@@ -50,13 +50,14 @@ def _syntax():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'op', metavar='OP',
-        choices=('add', 'remove', 'add_sock', 'remove_sock'),
+        choices=('add', 'remove', 'add_sock', 'remove_sock', 'query_pci'),
         help='port control operation',
     )
     parser.add_argument(
         '--vhost-path', type=str,
         help='Path to vhostuser socket.'
              ' Use this option with the add/remove-sock operations'
+             ' or when querying the associated PCI device'
     )
     parser.add_argument(
         '--virtio-id', metavar='virtio-id', type=int,

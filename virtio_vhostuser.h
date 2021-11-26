@@ -39,6 +39,8 @@
 #include <rte_eal.h>
 #include <rte_ethdev.h>
 
+#include "virtioforwarder.pb-c.h"
+
 #define MAX_RELAYS RTE_MAX_ETHPORTS
 #define MAX_NUM_BOND_SLAVES 8
 
@@ -82,5 +84,7 @@ int virtio_add_sock_dev_pair(const char *vhost_path,
 			bool conditional);
 int virtio_remove_sock_dev_pair(const char *vhost_path, char *dev,
 			bool conditional);
+int virtio_query_pci(Virtioforwarder__PortControlResponse *response,
+		     const char *vhost_path);
 
 #endif // _VIRTIO_VHOSTUSER_THREAD
