@@ -86,6 +86,9 @@ message PortControlResponse {
 
     // Source of @a error_code.
     optional string error_code_source = 6;
+
+    // Generic query string to be used when data should be returned
+    optional string query_string = 7;
 }
 
 // State of an individual relay, including statistics.

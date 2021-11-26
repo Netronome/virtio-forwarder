@@ -161,6 +161,9 @@ def main():
     if reply.status != reply.OK:
         print(reply)
         return 1
+    # If the reply contains a generic string response then output it here
+    if reply.query_string != '':
+        print(reply.query_string)
     return 0
 
 
