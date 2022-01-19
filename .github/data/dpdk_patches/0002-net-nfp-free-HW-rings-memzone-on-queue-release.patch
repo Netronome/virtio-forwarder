@@ -1,0 +1,108 @@
+From 3cac30607e20bb7e7190d4b745c3e4ecabd9ba5f Mon Sep 17 00:00:00 2001
+From: Heinrich Kuhn <heinrich.kuhn@corigine.com>
+Date: Wed, 19 Jan 2022 12:15:32 +0200
+Subject: [PATCH] net/nfp: free HW rings memzone on queue release
+
+During rx/tx queue setup, memory is reserved for the hardware rings.
+This memory zone should subsequently be freed in the queue release
+logic. This commit also adds a call to the release logic in the
+dev_close() callback so that the ring memzone may be freed during port
+close too.
+
+This patch is queued for DPDK stable:
+https://patchwork.dpdk.org/project/dpdk/patch/20220119114800.6900-1-heinrich.kuhn@corigine.com/
+
+Signed-off-by: Heinrich Kuhn <heinrich.kuhn@corigine.com>
+Signed-off-by: Simon Horman <simon.horman@corigine.com>
+---
+ drivers/net/nfp/nfp_net.c     | 16 ++++++++++++++++
+ drivers/net/nfp/nfp_net_pmd.h |  6 ++++++
+ 2 files changed, 22 insertions(+)
+
+diff --git a/drivers/net/nfp/nfp_net.c b/drivers/net/nfp/nfp_net.c
+index 978920f52e..3262befee7 100644
+--- a/drivers/net/nfp/nfp_net.c
++++ b/drivers/net/nfp/nfp_net.c
+@@ -223,6 +223,7 @@ nfp_net_rx_queue_release(void *rx_queue)
+ 
+ 	if (rxq) {
+ 		nfp_net_rx_queue_release_mbufs(rxq);
++		rte_memzone_free(rxq->tz);
+ 		rte_free(rxq->rxbufs);
+ 		rte_free(rxq);
+ 	}
+@@ -259,6 +260,7 @@ nfp_net_tx_queue_release(void *tx_queue)
+ 
+ 	if (txq) {
+ 		nfp_net_tx_queue_release_mbufs(txq);
++		rte_memzone_free(txq->tz);
+ 		rte_free(txq->txbufs);
+ 		rte_free(txq);
+ 	}
+@@ -890,11 +892,15 @@ nfp_net_close(struct rte_eth_dev *dev)
+ 	for (i = 0; i < dev->data->nb_tx_queues; i++) {
+ 		nfp_net_reset_tx_queue(
+ 			(struct nfp_net_txq *)dev->data->tx_queues[i]);
++		nfp_net_tx_queue_release(
++			(struct nfp_net_txq *)dev->data->tx_queues[i]);
+ 	}
+ 
+ 	for (i = 0; i < dev->data->nb_rx_queues; i++) {
+ 		nfp_net_reset_rx_queue(
+ 			(struct nfp_net_rxq *)dev->data->rx_queues[i]);
++		nfp_net_rx_queue_release(
++			(struct nfp_net_rxq *)dev->data->rx_queues[i]);
+ 	}
+ 
+ 	rte_intr_disable(&pci_dev->intr_handle);
+@@ -1605,6 +1611,11 @@ nfp_net_rx_queue_setup(struct rte_eth_dev *dev,
+ 	rxq->dma = (uint64_t)tz->iova;
+ 	rxq->rxds = (struct nfp_net_rx_desc *)tz->addr;
+ 
++	/* Also save the pointer to the memzone struct so it can be freed
++	 * if needed
++	 */
++	rxq->tz = tz;
++
+ 	/* mbuf pointers array for referencing mbufs linked to RX descriptors */
+ 	rxq->rxbufs = rte_zmalloc_socket("rxq->rxbufs",
+ 					 sizeof(*rxq->rxbufs) * nb_desc,
+@@ -1745,6 +1756,11 @@ nfp_net_tx_queue_setup(struct rte_eth_dev *dev, uint16_t queue_idx,
+ 		return -ENOMEM;
+ 	}
+ 
++	/* Save the pointer to the memzone struct so it can be freed
++	 * if needed
++	 */
++	txq->tz = tz;
++
+ 	txq->tx_count = nb_desc;
+ 	txq->tx_free_thresh = tx_free_thresh;
+ 	txq->tx_pthresh = tx_conf->tx_thresh.pthresh;
+diff --git a/drivers/net/nfp/nfp_net_pmd.h b/drivers/net/nfp/nfp_net_pmd.h
+index 42ab369cff..14c7c695b9 100644
+--- a/drivers/net/nfp/nfp_net_pmd.h
++++ b/drivers/net/nfp/nfp_net_pmd.h
+@@ -235,6 +235,9 @@ struct nfp_net_txq {
+ 	 */
+ 	struct nfp_net_tx_desc *txds;
+ 
++	/* Pointer to the memzone for the ring */
++	const struct rte_memzone *tz;
++
+ 	/*
+ 	 * At this point 48 bytes have been used for all the fields in the
+ 	 * TX critical path. We have room for 8 bytes and still all placed
+@@ -370,6 +373,9 @@ struct nfp_net_rxq {
+ 	/* DMA address of the queue */
+ 	__le64 dma;
+ 
++	/* Pointer to the memzone for the ring */
++	const struct rte_memzone *tz;
++
+ 	/*
+ 	 * Queue information: @qidx is the queue index from Linux's
+ 	 * perspective.  @fl_qcidx is the index of the Queue
+-- 
+2.27.0
+
