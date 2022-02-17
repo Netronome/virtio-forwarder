@@ -31,6 +31,10 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
+           cd /etc/yum.repos.d/
+           sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+           sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' \
+                   /etc/yum.repos.d/CentOS-*
            dnf install -y epel-release dnf-plugins-core
            dnf config-manager --set-enabled powertools
            dnf install -y \
@@ -53,6 +57,9 @@ jobs:
 
       - name: Populate build script
         run: sed -i "s/__MESON_TARGET__/rpm/g" $BUILDSCRIPT
+
+      - name: Add repo to git safe directory list
+        run: git config --global --add safe.directory `pwd`
 
       - name: Run build script
         run: bash $BUILDSCRIPT
@@ -106,6 +113,9 @@ jobs:
 
       - name: Populate build script
         run: sed -i "s/__MESON_TARGET__/deb/g" $BUILDSCRIPT
+
+      - name: Add repo to git safe directory list
+        run: git config --global --add safe.directory `pwd`
 
       - name: Run build script
         run: bash $BUILDSCRIPT
