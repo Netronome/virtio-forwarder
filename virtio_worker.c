@@ -409,8 +409,10 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 	/* Configure per-port offloads. */
 #if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
 	rte_eth_dev_info_get(port_id, &dev_info);
+#if RTE_VERSION_NUM(21, 11, 0, 0) > RTE_VERSION
 	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_JUMBO_FRAME)
 		eth_conf.rxmode.offloads |= DEV_RX_OFFLOAD_JUMBO_FRAME;
+#endif
 	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_CHECKSUM)
 		eth_conf.rxmode.offloads |= DEV_RX_OFFLOAD_CHECKSUM;
 	if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_IPV4_CKSUM)
@@ -429,8 +431,14 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 	eth_conf.rxmode.jumbo_frame = 1;
 	eth_conf.rxmode.hw_ip_checksum = 1;
 #endif
+#if RTE_VERSION_NUM(21, 11, 0, 0) > RTE_VERSION
 	eth_conf.rxmode.max_rx_pkt_len = relay->use_jumbo ? JUMBO_MBUF_SIZE :
 						DEFAULT_MBUF_SIZE;
+#else
+
+	eth_conf.rxmode.mtu = relay->use_jumbo ? JUMBO_MBUF_SIZE :
+						DEFAULT_MBUF_SIZE;
+#endif
 	err = rte_eth_dev_configure(port_id, 1, 1, &eth_conf);
 	if (err != 0) {
 		log_error("rte_eth_dev_configure(%hhu, 1, 1) failed with error %i",
