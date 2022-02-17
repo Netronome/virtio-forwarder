@@ -25,7 +25,7 @@ jobs:
         run: |
            yum install -y epel-release
            yum -y install \
-           https://packages.endpoint.com/rhel/7/os/x86_64/endpoint-repo-1.9-1.x86_64.rpm
+           https://packages.endpointdev.com/rhel/7/os/x86_64/endpoint-repo.x86_64.rpm
            yum install -y \
            git wget gcc make meson protobuf-c-compiler protobuf-c-devel \
            protobuf-compiler zeromq-devel numactl-devel libbsd-devel    \
@@ -36,6 +36,10 @@ jobs:
       - name: Install dependencies
         if: matrix.release.codename == 'centos8'
         run: |
+           cd /etc/yum.repos.d/
+           sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+           sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' \
+                   /etc/yum.repos.d/CentOS-*
            dnf install -y epel-release dnf-plugins-core
            dnf config-manager --set-enabled powertools
            dnf install -y \
@@ -51,6 +55,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: Add repo to git safe directory list
+        run: git config --global --add safe.directory `pwd`
 
       # Add the custom PKG_CONFIG_PATH here in case pkg_config_builder.py
       # created a libdpdk.pc in /tmp/pkgconfig
@@ -78,14 +85,18 @@ jobs:
            dnf install -y \
            git wget gcc make protobuf-c-compiler protobuf-c-devel \
            zeromq-devel protobuf-compiler numactl-devel           \
-           libbsd-devel meson python3-protobuf python-zmq         \
+           libbsd-devel  python3-protobuf python-zmq meson              \
            python-devel python-sphinx python-sphinx_rtd_theme     \
            dpdk dpdk-devel
+           pip3 install meson==0.59.1
 
       - name: Checkout out repository
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: Add repo to git safe directory list
+        run: git config --global --add safe.directory `pwd`
 
       - name: Build virtio-forwarder
         run:
@@ -140,6 +151,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: Add repo to git safe directory list
+        run: git config --global --add safe.directory `pwd`
 
       - name: Build virtio-forwarder
         run:
