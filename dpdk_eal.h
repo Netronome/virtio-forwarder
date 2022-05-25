@@ -43,6 +43,7 @@ struct dpdk_conf {
 	uint64_t core_bitmap;
 	unsigned use_jumbo:1;
 	unsigned enable_tso:1;
+	unsigned enable_same_numa:1;
 };
 
 int dpdk_eal_initialize(const struct dpdk_conf *conf);

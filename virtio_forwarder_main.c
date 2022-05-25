@@ -606,6 +606,16 @@ cmdline_enable_dynamic_sockets(void *opaque __attribute__((unused)),
 }
 #endif
 
+static int
+cmdline_enable_same_numa(void *opaque __attribute__((unused)),
+			const char *arg __attribute__((unused)),
+			int opt_index __attribute__((unused)))
+{
+	dpdk_cfg.enable_same_numa = 1;
+
+	return 0;
+}
+
 static int configure_signals(void)
 {
 	sigset_t sigset;
@@ -672,6 +682,7 @@ cmdline_opt_t opts[] = {
 #if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
 	{ "dynamic-sockets", 'd', 0, cmdline_enable_dynamic_sockets, 0, "Connect to sockets dynamically instead of creating the default sockets (default: disabled)" },
 #endif
+	{ "same-numa", 'a', 0, cmdline_enable_same_numa, 0, "No longer reserve hugapage on all numa, just reserve hugapage on numa that been used (default: disable)" },
 	{ "version", 'v', CMDLINE_PARAM_FLAG_TERMINATE, cmdline_show_version, 0, "Show version number and exit" },
 	{ 0, 0, 0, 0, 0, "\n\nVirtio-forwarder daemon: forward packets between SR-IOV VFs (serviced by DPDK) and VirtIO network backend.\n" }
 };
