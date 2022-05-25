@@ -50,7 +50,7 @@ int dpdk_eal_initialize(const struct dpdk_conf *conf)
 	int ret;
 	char buf[32];
 	unsigned i;
-	int l;
+	int len = 0;
 	cpuinfo_t *cpu = get_cpuinfo();
 	uint32_t socket_bitmap = 0;
 	uint32_t numa_bitmap = 0;
@@ -113,16 +113,25 @@ int dpdk_eal_initialize(const struct dpdk_conf *conf)
 	add_arg(&argv, &argc, "-n"); /* Mem channels. */
 	add_arg(&argv, &argc, "4");
 	add_arg(&argv, &argc, "--socket-mem"); /* Memory to allocate per NUMA node (MiB). */
-	l=0;
-	for (i=0; i<cpu->numnodes; i++) {
+
+	/* By default, XVIO reserve at least 1 MiB hugepage memory on each numa,
+	 * as error will occur while use NIC on that numa node but not assign
+	 * hugepage.
+	 * In order to reduce memory use, ensure used NIC and CPUs are on the same
+	 * numa, then set 'conf->enable_same_numa', XVIO will only reserve hugepages
+	 * on the active numa node.
+	 */
+	for (i = 0; i < cpu->numnodes; i++) {
 		if (i >= 1)
-			l += snprintf(buf + l, 32 - l, ",");
-		if ((1<<i) & numa_bitmap)
-			l += snprintf(buf + l, 32 - l,
+			len += snprintf(buf + len, 32 - len, ",");
+
+		if ((1 << i) & numa_bitmap)
+			len += snprintf(buf + len, 32 - len,
 				(conf->use_jumbo || conf->enable_tso) ?
 				"2750" : "768");
 		else
-			l += snprintf(buf + l, 32 - l, "1");
+			len += snprintf(buf + len, 32 - len,
+				conf->enable_same_numa ? "0" : "1");
 	}
 	add_arg(&argv, &argc, buf);
 	optind = 0;
