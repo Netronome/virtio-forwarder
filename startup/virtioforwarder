@@ -52,6 +52,18 @@ VIRTIOFWD_STATIC_VFS=
 # plugging infrastructure.
 # Set to anything non-null to enable
 VIRTIOFWD_DYNAMIC_SOCKETS=
+
+# By default, for added versatility, virtio-forwarder will reserve at least a
+# hugepage on all numa, because we don't know if the NIC on that numa is used,
+# if we use NIC on that numa but not assign hugepage, error will occur. This
+# does waste unnecessary memory if the NIC and CPU-cores are all on the same
+# numa. In order to reduce memory use, the option below can be set to only
+# assign hugepages on the active numa.
+#
+# Important: Ensure used NIC and CPU's are all assigned on the same numa,
+# then enable this option.
+# Set to anything non-null to enable
+VIRTIOFWD_CPU_NIC_SAME_NUMA=
 #-------------------------------------------------------------------------------
 
 
