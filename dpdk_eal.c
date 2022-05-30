@@ -136,6 +136,10 @@ int dpdk_eal_initialize(const struct dpdk_conf *conf)
 	add_arg(&argv, &argc, buf);
 	optind = 0;
 
+	/* Output eal param into log */
+	for (i = 0; i < argc; i++)
+		log_info("dpdk eal param %d: %s", i, argv[i]);
+
 	log_info("DPDK version: %s", rte_version());
 	ret = rte_eal_init(argc, argv);
 	if (ret < 0) {
