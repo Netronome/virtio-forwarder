@@ -429,8 +429,8 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 	eth_conf.rxmode.jumbo_frame = 1;
 	eth_conf.rxmode.hw_ip_checksum = 1;
 #endif
-	eth_conf.rxmode.max_rx_pkt_len = relay->use_jumbo ? JUMBO_MBUF_SIZE :
-						DEFAULT_MBUF_SIZE;
+	eth_conf.rxmode.max_rx_pkt_len = relay->use_jumbo ? JUMBO_IP_MTU :
+						DEFAULT_IP_MTU;
 	err = rte_eth_dev_configure(port_id, 1, 1, &eth_conf);
 	if (err != 0) {
 		log_error("rte_eth_dev_configure(%hhu, 1, 1) failed with error %i",
