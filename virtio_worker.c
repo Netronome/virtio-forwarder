@@ -263,12 +263,13 @@ static int cleanup_eth_dev(dpdk_port_t port_id)
 {
 	int err;
 
+	struct rte_eth_dev_info dev_info;
+	rte_eth_dev_info_get(port_id, &dev_info);
 	rte_eth_dev_stop(port_id);
 	rte_eth_dev_close(port_id);
 #if RTE_VERSION >= RTE_VERSION_NUM(18,11,0,0)
 	const char rte_detach_api[] = "rte_dev_remove";
-	struct rte_eth_dev_info dev_info;
-	rte_eth_dev_info_get(port_id, &dev_info);
+
 	err = rte_dev_remove(dev_info.device);
 #else
 	const char rte_detach_api[] = "rte_eth_dev_detach";
@@ -409,8 +410,6 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 	/* Configure per-port offloads. */
 #if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
 	rte_eth_dev_info_get(port_id, &dev_info);
-	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_JUMBO_FRAME)
-		eth_conf.rxmode.offloads |= DEV_RX_OFFLOAD_JUMBO_FRAME;
 	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_CHECKSUM)
 		eth_conf.rxmode.offloads |= DEV_RX_OFFLOAD_CHECKSUM;
 	if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_IPV4_CKSUM)
@@ -429,8 +428,13 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 	eth_conf.rxmode.jumbo_frame = 1;
 	eth_conf.rxmode.hw_ip_checksum = 1;
 #endif
+#if RTE_VERSION >= RTE_VERSION_NUM(21,11,0,0)
+	eth_conf.rxmode.mtu = relay->use_jumbo ? JUMBO_IP_MTU :
+						DEFAULT_IP_MTU;
+#else
 	eth_conf.rxmode.max_rx_pkt_len = relay->use_jumbo ? JUMBO_IP_MTU :
 						DEFAULT_IP_MTU;
+#endif
 	err = rte_eth_dev_configure(port_id, 1, 1, &eth_conf);
 	if (err != 0) {
 		log_error("rte_eth_dev_configure(%hhu, 1, 1) failed with error %i",

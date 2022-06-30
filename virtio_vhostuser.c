@@ -382,11 +382,15 @@ virtio_vhostuser_vring_state_change_cb(struct virtio_net *dev,
 }
 #endif
 
-#if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION >= RTE_VERSION_NUM(21,11,0,0)
+static const struct rte_vhost_device_ops virtio_vhostuser_ops = {
+#elif RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
 static const struct vhost_device_ops virtio_vhostuser_ops = {
-	.features_changed = virtio_vhostuser_features_changed_cb,
 #else
 static const struct virtio_net_device_ops virtio_vhostuser_ops = {
+#endif
+#if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
+	.features_changed = virtio_vhostuser_features_changed_cb,
 #endif
 	.new_device =  virtio_vhostuser_new_device_cb,
 	.destroy_device = virtio_vhostuser_destroy_device_cb,
