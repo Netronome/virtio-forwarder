@@ -231,7 +231,16 @@ static void get_tx_conf(const struct rte_eth_dev_info *dev_info,
 			struct rte_eth_txconf *tx_conf)
 {
 	*tx_conf = dev_info->default_txconf;
-#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
+#if RTE_VERSION_NUM(22, 03, 0, 0) <= RTE_VERSION
+	uint64_t desired_offloads;
+	desired_offloads = RTE_ETH_TX_OFFLOAD_IPV4_CKSUM |
+				RTE_ETH_TX_OFFLOAD_UDP_CKSUM |
+				RTE_ETH_TX_OFFLOAD_TCP_CKSUM;
+	if (g_vio_worker_conf.enable_tso)
+		desired_offloads |= (RTE_ETH_TX_OFFLOAD_TCP_TSO |
+					RTE_ETH_TX_OFFLOAD_UDP_TSO);
+	tx_conf->offloads = dev_info->tx_offload_capa & desired_offloads;
+#elif RTE_VERSION_NUM(17, 11, 0, 0) <= RTE_VERSION
 	uint64_t desired_offloads;
 	desired_offloads = DEV_TX_OFFLOAD_IPV4_CKSUM |
 				DEV_TX_OFFLOAD_UDP_CKSUM |
@@ -250,7 +259,13 @@ static void get_rx_conf(const struct rte_eth_dev_info *dev_info,
 			struct rte_eth_rxconf *rx_conf)
 {
 	*rx_conf = dev_info->default_rxconf;
-#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
+#if RTE_VERSION_NUM(22, 03, 0, 0) <= RTE_VERSION
+	uint64_t desired_offloads;
+	desired_offloads = RTE_ETH_RX_OFFLOAD_IPV4_CKSUM |
+				RTE_ETH_RX_OFFLOAD_UDP_CKSUM |
+				RTE_ETH_RX_OFFLOAD_TCP_CKSUM;
+	rx_conf->offloads = dev_info->rx_offload_capa & desired_offloads;
+#elif RTE_VERSION_NUM(17, 11, 0, 0) <= RTE_VERSION
 	uint64_t desired_offloads;
 	desired_offloads = DEV_RX_OFFLOAD_IPV4_CKSUM |
 				DEV_RX_OFFLOAD_UDP_CKSUM |
@@ -413,6 +428,22 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_JUMBO_FRAME)
 		eth_conf.rxmode.offloads |= DEV_RX_OFFLOAD_JUMBO_FRAME;
 #endif
+#if RTE_VERSION_NUM(22, 03, 0, 0) <= RTE_VERSION
+	if (dev_info.rx_offload_capa & RTE_ETH_RX_OFFLOAD_CHECKSUM)
+		eth_conf.rxmode.offloads |= RTE_ETH_RX_OFFLOAD_CHECKSUM;
+	if (dev_info.tx_offload_capa & RTE_ETH_TX_OFFLOAD_IPV4_CKSUM)
+		eth_conf.txmode.offloads |= RTE_ETH_TX_OFFLOAD_IPV4_CKSUM;
+	if (dev_info.tx_offload_capa & RTE_ETH_TX_OFFLOAD_UDP_CKSUM)
+		eth_conf.txmode.offloads |= RTE_ETH_TX_OFFLOAD_UDP_CKSUM;
+	if (dev_info.tx_offload_capa & RTE_ETH_TX_OFFLOAD_TCP_CKSUM)
+		eth_conf.txmode.offloads |= RTE_ETH_TX_OFFLOAD_TCP_CKSUM;
+	if (g_vio_worker_conf.enable_tso) {
+		if (dev_info.tx_offload_capa & RTE_ETH_TX_OFFLOAD_TCP_TSO)
+			eth_conf.txmode.offloads |= RTE_ETH_TX_OFFLOAD_TCP_TSO;
+		if (dev_info.tx_offload_capa & RTE_ETH_TX_OFFLOAD_UDP_TSO)
+			eth_conf.txmode.offloads |= RTE_ETH_TX_OFFLOAD_UDP_TSO;
+	}
+#else
 	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_CHECKSUM)
 		eth_conf.rxmode.offloads |= DEV_RX_OFFLOAD_CHECKSUM;
 	if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_IPV4_CKSUM)
@@ -427,6 +458,7 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 		if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_UDP_TSO)
 			eth_conf.txmode.offloads |= DEV_TX_OFFLOAD_UDP_TSO;
 	}
+#endif
 #else
 	eth_conf.rxmode.jumbo_frame = 1;
 	eth_conf.rxmode.hw_ip_checksum = 1;
