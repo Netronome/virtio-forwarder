@@ -66,6 +66,11 @@
 #if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
 #include <numaif.h>
 #endif
+#if RTE_VERSION_NUM(21, 00, 0, 0) <= RTE_VERSION
+#ifdef RTE_NET_BOND
+#define RTE_LIBRTE_PMD_BOND
+#endif
+#endif
 #ifdef RTE_LIBRTE_PMD_BOND
 #include <rte_eth_bond.h>
 #endif

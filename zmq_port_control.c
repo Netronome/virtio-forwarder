@@ -45,6 +45,11 @@
 #include "virtio_worker.h"
 #include "virtio_vhostuser.h"
 #include "zmq_service.h"
+#if RTE_VERSION_NUM(21, 00, 0, 0) <= RTE_VERSION
+#ifdef RTE_NET_BOND
+#define RTE_LIBRTE_PMD_BOND
+#endif
+#endif
 #ifdef RTE_LIBRTE_PMD_BOND
 #include <rte_eth_bond.h>
 #endif
