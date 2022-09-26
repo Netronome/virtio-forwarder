@@ -219,14 +219,24 @@ sources = files('argv.c',
 
 # Explicitly link to the bond PMD here but only if it is actually available
 if not get_option('static')
-  if cc.has_header('dpdk/rte_eth_bond.h')
+  if cc.has_header('rte_eth_bond.h') or cc.has_header('dpdk/rte_eth_bond.h')
     message('Explicitly linking to rte_net_bond')
     if debian_family
       dpdk = declare_dependency(dependencies : dpdk,
                                 link_args : '-lrte_pmd_bond')
     elif rhel_family
-      dpdk = declare_dependency(dependencies : dpdk,
-                                link_args : '-lrte_net_bond')
+        librte_pc_paths = ['/usr/lib64/', '/usr/local/lib64/']
+        foreach librte_pc : librte_pc_paths
+            if (run_command('[', '-e', librte_pc + 'librte_pmd_bond.so', ']').returncode() == 0)
+                dpdk = declare_dependency(dependencies : dpdk, link_args : '-lrte_pmd_bond')
+                break
+            elif (run_command('[', '-e', librte_pc + 'librte_net_bond.so', ']').returncode() == 0)
+                dpdk = declare_dependency(dependencies : dpdk, link_args : '-lrte_net_bond')
+                break
+            else
+                continue
+            endif
+        endforeach
     endif
   endif
 endif
