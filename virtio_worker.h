@@ -60,7 +60,7 @@
 #define VIRTIO_WORKER_INTERNAL_STATE_CCH_MAX 24
 
 /* Shared compat definitions. */
-#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
+#if RTE_VERSION_NUM(17, 11, 0, 0) <= RTE_VERSION
 typedef uint16_t dpdk_port_t;
 #else
 typedef uint8_t dpdk_port_t;
@@ -74,7 +74,7 @@ extern struct virtio_vhostuser_conf g_vio_worker_conf;
 /*
  * Type declarations
  */
-#if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) <= RTE_VERSION
 enum {VIRTIO_RXQ, VIRTIO_TXQ, VIRTIO_QNUM};
 #endif
 
@@ -175,7 +175,7 @@ struct relay_virtio {
 	unsigned tx_q_rr; /* round robin state of tx queue processing for multi-queue, 0 <= tx_q_rr < max_queue_pairs. */
 	bool pow2queues;
 	volatile vio_state_t state;
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	int vio_dev;
 #else
 	void *vio_dev;
@@ -290,7 +290,7 @@ void virtio_forwarders_shutdown(void);
 /**
  * @brief Adds a virtio_net interface to a specific virtio-forwarder relay
  */
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 int virtio_forwarder_add_virtio(int virtio_net, unsigned id);
 #else
 int virtio_forwarder_add_virtio(void *virtio_net, unsigned id);

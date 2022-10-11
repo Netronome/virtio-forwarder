@@ -33,7 +33,7 @@
 
 #include <stdio.h>
 #include <rte_version.h>
-#if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) <= RTE_VERSION
 #include <rte_vhost.h>
 #else
 #include <rte_virtio_net.h>

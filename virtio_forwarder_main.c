@@ -559,7 +559,7 @@ cmdline_add_static_vf(void *opaque __attribute__((unused)),
 	return 0;
 }
 
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 static int
 cmdline_enable_vhostclient(void *opaque __attribute__((unused)),
 				const char *arg __attribute__((unused)),
@@ -571,7 +571,7 @@ cmdline_enable_vhostclient(void *opaque __attribute__((unused)),
 }
 #endif
 
-#if RTE_VERSION >= RTE_VERSION_NUM(16,11,0,0)
+#if RTE_VERSION_NUM(16, 11, 0, 0) <= RTE_VERSION
 static int
 cmdline_enable_zerocopy(void *opaque __attribute__((unused)),
 			const char *arg __attribute__((unused)),
@@ -594,7 +594,7 @@ cmdline_enable_tso(void *opaque __attribute__((unused)),
 	return 0;
 }
 
-#if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) <= RTE_VERSION
 static int
 cmdline_enable_dynamic_sockets(void *opaque __attribute__((unused)),
 			const char *arg __attribute__((unused)),
@@ -672,14 +672,14 @@ cmdline_opt_t opts[] = {
 	{ "enable-jumbo", 'J', 0, cmdline_enable_jumbo, 0, "Enable jumbo frame support for the relay (increases hugepage memory requirement)" },
 	{ "enable-mrgbuf", 'R', 0, cmdline_enable_mrgbuf, 0, "Enable virtio RX buffer merging (can impact small packet performance)" },
 	{ "add-pci-vf", 'P', 0, cmdline_add_static_vf, 1, "Add a static VF, <PCI>=<virtio_id>, e.g. 0000:05:08.1=1" },
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	{ "vhostuser-client", 'i', 0, cmdline_enable_vhostclient, 0, "Use vhostuser in client mode (default: server mode)" },
 #endif
-#if RTE_VERSION >= RTE_VERSION_NUM(16,11,0,0)
+#if RTE_VERSION_NUM(16, 11, 0, 0) <= RTE_VERSION
 	{ "zero-copy", '0', 0, cmdline_enable_zerocopy, 0, "Use experimental zero-copy support (VM to NIC) (default: disabled)" },
 #endif
 	{ "enable-tso", 'T', 0, cmdline_enable_tso, 0, "Enable TCP Segmentation Offload (increases hugepage memory requirement, default: disabled)" },
-#if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) <= RTE_VERSION
 	{ "dynamic-sockets", 'd', 0, cmdline_enable_dynamic_sockets, 0, "Connect to sockets dynamically instead of creating the default sockets (default: disabled)" },
 #endif
 	{ "same-numa", 'a', 0, cmdline_enable_same_numa, 0, "No longer reserve hugapage on all numa, just reserve hugapage on numa that been used (default: disable)" },

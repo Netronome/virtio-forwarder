@@ -45,7 +45,7 @@
 #include "virtio_worker.h"
 #include "ugid.h"
 #include <rte_version.h>
-#if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) <= RTE_VERSION
 #include <rte_vhost.h>
 #include <linux/virtio_net.h>
 #else
@@ -95,7 +95,7 @@ const char* const vhost_features[] = {
 };
 
 
-#if RTE_VERSION < RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) > RTE_VERSION
 static pthread_t vhostuser_thread;
 #endif
 static char vhost_socket_name_prefix[128];
@@ -156,12 +156,12 @@ static int get_relay_for_sock(const char *vhost_path)
 	return -1;
 }
 
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 static int virtio_vhostuser_new_device_cb(int vid)
 {
 	int id;
 	char ifname[128];
-#if RTE_VERSION < RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) > RTE_VERSION
 	unsigned num_vring_pairs = rte_vhost_get_queue_num(vid);
 #else
 	unsigned num_vring_pairs = rte_vhost_get_vring_num(vid)/2;
@@ -225,7 +225,7 @@ virtio_vhostuser_vring_state_change_cb(int vid, uint16_t queue_id, int enable)
 	return 0;
 }
 
-#if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) <= RTE_VERSION
 static int virtio_vhostuser_features_changed_cb(int vid, uint64_t features)
 {
 	char ifname[128];
@@ -260,7 +260,7 @@ static int virtio_vhostuser_features_changed_cb(int vid, uint64_t features)
 }
 #endif
 
-#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
+#if RTE_VERSION_NUM(17, 11, 0, 0) <= RTE_VERSION
 static int virtio_vhostuser_new_connection_cb(int vid)
 {
 	char ifname[128];
@@ -394,13 +394,13 @@ static const struct virtio_net_device_ops virtio_vhostuser_ops = {
 	.new_device =  virtio_vhostuser_new_device_cb,
 	.destroy_device = virtio_vhostuser_destroy_device_cb,
 	.vring_state_changed = virtio_vhostuser_vring_state_change_cb,
-#if RTE_VERSION >= RTE_VERSION_NUM(17,11,0,0)
+#if RTE_VERSION_NUM(17, 11, 0, 0) <= RTE_VERSION
 	.new_connection = virtio_vhostuser_new_connection_cb,
 	.destroy_connection = virtio_vhostuser_destroy_connection_cb,
 #endif
 };
 
-#if RTE_VERSION < RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) > RTE_VERSION
 static void* virtio_vhostuser_threadmain(void *arg __attribute__((unused)))
 {
 	log_debug("Starting vhostuser thread");
@@ -500,7 +500,7 @@ static int prep_default_sockets(void)
 static int register_relay_socket(const char *vhost_path, unsigned relay_id)
 {
 	struct stat statbuf;
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	unsigned flags = 0;
 #endif
 	uid_t uid, gid;
@@ -533,15 +533,15 @@ static int register_relay_socket(const char *vhost_path, unsigned relay_id)
 		return -1;
 	}
 
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	if (conf->vhost_client)
 		flags |= RTE_VHOST_USER_CLIENT;
 #endif
-#if (RTE_VERSION >= RTE_VERSION_NUM(16,11,0,0)) && (RTE_VERSION < RTE_VERSION_NUM(20,11,0,0))
+#if (RTE_VERSION_NUM(16, 11, 0, 0) <= RTE_VERSION) && (RTE_VERSION_NUM(20, 11, 0, 0) > RTE_VERSION)
 	if (conf->zerocopy)
 		flags |= RTE_VHOST_USER_DEQUEUE_ZERO_COPY;
 #endif
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	if (rte_vhost_driver_register(vhost_path, flags) != 0) {
 #else
 	if (rte_vhost_driver_register(vhost_path) != 0) {
@@ -550,7 +550,7 @@ static int register_relay_socket(const char *vhost_path, unsigned relay_id)
 		return -1;
 	}
 
-#if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) <= RTE_VERSION
 	/* Set features. */
 	if (conf->use_rx_mrgbuf == 0) {
 		if (rte_vhost_driver_disable_features(
@@ -634,7 +634,7 @@ int virtio_vhostuser_start(const struct virtio_vhostuser_conf *conf,
 	int err;
 
 	mk_default_sockets = create_sockets;
-#if RTE_VERSION < RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) > RTE_VERSION
 	/* TODO: Investigate dynamic socket support for old DPDKs. */
 	if (!mk_default_sockets) {
 		log_warning("Dynamic sockets not supported for this version of DPDK!");
@@ -661,7 +661,7 @@ int virtio_vhostuser_start(const struct virtio_vhostuser_conf *conf,
 	}
 
 	log_debug("Registering vhost driver");
-#if RTE_VERSION < RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) > RTE_VERSION
 	if (conf->use_rx_mrgbuf == 0)
 		/* Enabling RX buffer merging can cause 50% performance
 		 * degradation with DPDK <=16.07, and 20% degradation with DPDK 16.11! */
@@ -687,7 +687,7 @@ int virtio_vhostuser_start(const struct virtio_vhostuser_conf *conf,
 		}
 	}
 
-#if RTE_VERSION < RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) > RTE_VERSION
 	rte_vhost_driver_callback_register(&virtio_vhostuser_ops);
 	log_debug("Creating vhostuser thread");
 	pthread_create(&vhostuser_thread, 0, virtio_vhostuser_threadmain, 0);
@@ -703,7 +703,7 @@ void virtio_vhostuser_stop(void) {
 			deregister_socket(relay_ifname_map[id]);
 	}
 
-#if RTE_VERSION < RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) > RTE_VERSION
 	struct timespec ts;
 	struct timeval tv;
 	gettimeofday(&tv, 0);
@@ -729,7 +729,7 @@ int virtio_add_sock_dev_pair(const char *vhost_path,
 	int err;
 	int relay_id;
 	char *dev;
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	dpdk_port_t port_id;
 #endif
 
@@ -739,7 +739,7 @@ int virtio_add_sock_dev_pair(const char *vhost_path,
 	}
 
 	dev = num_slaves == 1 ? slave_dbdfs[0] : name;
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	if (rte_eth_dev_get_port_by_name(dev, &port_id) == 0) {
 		log_error("Device %s is already attached to virtio-forwarder",
 			dev);

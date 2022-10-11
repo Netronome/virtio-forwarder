@@ -35,7 +35,7 @@
 #define __MODULE__ "virtio_worker"
 #include "log.h"
 #include <rte_version.h>
-#if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) <= RTE_VERSION
 #include <rte_vhost.h>
 #else
 #include <rte_virtio_net.h>
@@ -63,7 +63,7 @@
 #include <rte_jhash.h>
 #include <rte_spinlock.h>
 #include <rte_cycles.h>
-#if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) > RTE_VERSION
 #include <numaif.h>
 #endif
 #if RTE_VERSION_NUM(21, 00, 0, 0) <= RTE_VERSION
@@ -255,7 +255,7 @@ static void get_tx_conf(const struct rte_eth_dev_info *dev_info,
 					DEV_TX_OFFLOAD_UDP_TSO);
 	tx_conf->offloads = dev_info->tx_offload_capa & desired_offloads;
 #endif
-#if RTE_VERSION < RTE_VERSION_NUM(18,8,0,0)
+#if RTE_VERSION_NUM(18, 8, 0, 0) > RTE_VERSION
 	tx_conf->txq_flags &= ~ETH_TXQ_FLAGS_NOOFFLOADS;
 #endif
 }
@@ -285,7 +285,7 @@ static int cleanup_eth_dev(dpdk_port_t port_id)
 
 	rte_eth_dev_stop(port_id);
 	rte_eth_dev_close(port_id);
-#if RTE_VERSION >= RTE_VERSION_NUM(18,11,0,0)
+#if RTE_VERSION_NUM(18, 11, 0, 0) <= RTE_VERSION
 	const char rte_detach_api[] = "rte_dev_remove";
 	struct rte_eth_dev_info dev_info;
 	rte_eth_dev_info_get(port_id, &dev_info);
@@ -335,7 +335,7 @@ static struct rte_mempool *alloc_mempool(unsigned virtio_id, int socket_id,
 static int __attribute__((unused))
 migrate_mempool(vio_vf_relay_t *relay, int newnode, unsigned num_pktmbufs)
 {
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	uint8_t port_id = relay->dpdk.dpdk_port;
 	struct rte_mempool *new_pool;
 
@@ -427,7 +427,7 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 		port_id, name, virtio_id);
 
 	/* Configure per-port offloads. */
-#if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
+#if RTE_VERSION_NUM(18, 8, 0, 0) <= RTE_VERSION
 	rte_eth_dev_info_get(port_id, &dev_info);
 #if RTE_VERSION_NUM(21, 11, 0, 0) > RTE_VERSION
 	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_JUMBO_FRAME)
@@ -539,7 +539,7 @@ static int init_vf(const char *pci_dbdf, dpdk_port_t *port_id,
 {
 	int err;
 
-#if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
+#if RTE_VERSION_NUM(18, 8, 0, 0) <= RTE_VERSION
 	const char rte_attach_api[] = "rte_dev_probe";
 	err = rte_dev_probe(pci_dbdf);
 #else
@@ -555,13 +555,13 @@ static int init_vf(const char *pci_dbdf, dpdk_port_t *port_id,
 		return 2;
 	}
 
-#if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
+#if RTE_VERSION_NUM(18, 8, 0, 0) <= RTE_VERSION
 	struct rte_dev_iterator it;
 	RTE_ETH_FOREACH_MATCHING_DEV(*port_id, pci_dbdf, &it) {
 #endif
 	err = dev_queue_configure(pci_dbdf, *port_id, virtio_id, relay, false);
 	if (err) {
-#if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
+#if RTE_VERSION_NUM(18, 8, 0, 0) <= RTE_VERSION
 		rte_eth_iterator_cleanup(&it);
 #endif
 		cleanup_eth_dev(*port_id);
@@ -569,7 +569,7 @@ static int init_vf(const char *pci_dbdf, dpdk_port_t *port_id,
 	}
 
 	rte_eth_promiscuous_enable(*port_id);
-#if RTE_VERSION >= RTE_VERSION_NUM(18,8,0,0)
+#if RTE_VERSION_NUM(18, 8, 0, 0) <= RTE_VERSION
 	/* Enforce a single match - there should only be one. */
 	rte_eth_iterator_cleanup(&it);
 	break;
@@ -720,7 +720,7 @@ int virtio_forwarder_bond_add(char slave_dbdfs[MAX_NUM_BOND_SLAVES][RTE_ETH_NAME
 		port_id = err;
 	}
 
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	/* Error if a slave is already attached to DPDK. */
 	for (unsigned i=0; i<num_slaves; ++i) {
 		dpdk_port_t tmp;
@@ -881,7 +881,7 @@ static int detach_device(vio_vf_relay_t *relay)
 	relay->dpdk.pci_dbdf[0] = 0;
 	relay->dpdk.is_bond = false;
 	relay->dpdk.num_slaves = 0;
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	if (relay->vio.state == VIRTIO_UNINIT) {
 		rte_mempool_free(relay->vio.mempool);
 		relay->vio.mempool = NULL;
@@ -939,7 +939,7 @@ int virtio_forwarder_remove_vf(const char *pci_dbdf, unsigned virtio_id)
 	return virtio_forwarder_remove_vf2(pci_dbdf, virtio_id, false);
 }
 
-#if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) > RTE_VERSION
 static inline uint16_t __attribute__((always_inline))
 vring_available_entries(struct virtio_net *dev, uint16_t queue_id)
 {
@@ -1051,7 +1051,7 @@ calc_mbuf_queue(vio_vf_relay_t *relay, struct rte_mbuf **pkts, uint16_t nb_pkts)
 }
 
 #if defined(VIRTIO_RETRY_ENQUEUE)
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 static int
 worker_vhost_enqueue_burst(int dev, uint16_t q, struct rte_mbuf **pkts,
 				uint32_t count)
@@ -1160,7 +1160,7 @@ static inline void update_thread(worker_thread_t *thread)
 
 static inline int virtio_rx(vio_vf_relay_t *relay)
 {
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	int dev = (int)relay->vio.vio_dev;
 #else
 	struct virtio_net *dev = relay->vio.vio_dev;
@@ -1331,7 +1331,7 @@ static inline int dpdk_rx(vio_vf_relay_t *relay)
 	/* The following check prevents a segmentation fault during live
 	 * migration when using DPDK >= 17.11. */
 	if (likely(!relay->vio.lm_pending)) {
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 		try_rcv = rte_vhost_avail_entries((int)relay->vio.vio_dev,
 							VIRTIO_RXQ);
 #else
@@ -1653,7 +1653,7 @@ int virtio_forwarders_initialize(void)
 		virtio_vf_relays[w].dpdk.num_slaves = 0;
 		virtio_vf_relays[w].vio.mempool_socket_id = socket_id;
 		virtio_vf_relays[w].use_jumbo = conf->use_jumbo;
-#if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) > RTE_VERSION
 		virtio_vf_relays[w].vio.mempool = alloc_mempool(w, socket_id,
 							NUM_PKTMBUF_POOL-1);
 		if (!virtio_vf_relays[w].vio.mempool) {
@@ -1752,7 +1752,7 @@ static void find_virtio2vf_cpu(vio_vf_relay_t *relay)
 }
 
 /* Get NUMA information of guest. */
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 static int get_guest_numa(int virtionet)
 {
 	int guest_node = rte_vhost_get_numa_node(virtionet);
@@ -1773,7 +1773,7 @@ static int get_guest_numa(int virtionet)
 }
 #endif
 
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 int virtio_forwarder_add_virtio(int virtionet, unsigned id)
 #else
 int virtio_forwarder_add_virtio(void *virtionet, unsigned id)
@@ -1800,9 +1800,9 @@ int virtio_forwarder_add_virtio(void *virtionet, unsigned id)
 		relay->vio.vio2vf_cpu);
 	relay->vio.tx_q_rr = 0;
 	relay->vio.vio_dev = virtionet;
-#if RTE_VERSION >= RTE_VERSION_NUM(17,5,0,0)
+#if RTE_VERSION_NUM(17, 5, 0, 0) <= RTE_VERSION
 	relay->vio.max_queue_pairs = rte_vhost_get_vring_num(virtionet)/2;
-#elif RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#elif RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	relay->vio.max_queue_pairs = rte_vhost_get_queue_num(virtionet);
 #else
 	relay->vio.max_queue_pairs =
@@ -1814,7 +1814,7 @@ int virtio_forwarder_add_virtio(void *virtionet, unsigned id)
 		return -1;
 	}
 
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	/* Use guest numa to align mempool. */
 	int newnode = get_guest_numa(virtionet);
 	if (!relay->vio.mempool) {
@@ -1932,7 +1932,7 @@ void virtio_forwarder_remove_virtio(unsigned id)
 	__sync_synchronize();
 	worker_threads[tmpidx].need_update = true;
 
-#if RTE_VERSION < RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) > RTE_VERSION
 	struct virtio_net *dev=relay->vio.vio_dev;
 	log_debug("virtio-forwarder ended, final virtqueue state: txq avail idx=%hhu, txq avail last used=%hhu, txq used idx=%hhu, rxq avail idx=%hhu, rxq avail last used=%hhu, rxq used idx=%hhu",
 		dev->virtqueue[VIRTIO_TXQ]->avail->idx,
@@ -1966,7 +1966,7 @@ void virtio_forwarder_remove_virtio(unsigned id)
 		__sync_synchronize();
 		worker_threads[relay->dpdk.vf2vio_cpu].need_update = true;
 	}
-#if RTE_VERSION >= RTE_VERSION_NUM(16,7,0,0)
+#if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	else {
 		rte_mempool_free(relay->vio.mempool);
 		relay->vio.mempool = NULL;

@@ -33,7 +33,7 @@
 
 #include <rte_version.h>
 
-#if RTE_VERSION < RTE_VERSION_NUM(19,8,0,0)
+#if RTE_VERSION_NUM(19, 8, 0, 0) > RTE_VERSION
 #define RTE_ETHER_TYPE_IPV4 ETHER_TYPE_IPv4
 #define RTE_IPV4_HDR_IHL_MASK IPV4_HDR_IHL_MASK
 #define RTE_ETHER_TYPE_IPV6 ETHER_TYPE_IPv6
@@ -43,11 +43,11 @@
 #define rte_ipv4_hdr ipv4_hdr
 #define rte_ipv6_hdr ipv6_hdr
 #define rte_udp_hdr udp_hdr
-#endif /* RTE_VERSION < RTE_VERSION_NUM(19,8,0,0) */
+#endif /* RTE_VERSION_NUM(19, 8, 0, 0) > RTE_VERSION */
 
-#if RTE_VERSION < RTE_VERSION_NUM(20,11,0,0)
+#if RTE_VERSION_NUM(20, 11, 0, 0) > RTE_VERSION
 #define RTE_LCORE_FOREACH_WORKER RTE_LCORE_FOREACH_SLAVE
 #define SKIP_MAIN SKIP_MASTER
 
 #define rte_get_main_lcore rte_get_master_lcore
-#endif /* RTE_VERSION < RTE_VERSION_NUM(20,11,0,0) */
+#endif /* RTE_VERSION_NUM(20, 11, 0, 0) > RTE_VERSION */

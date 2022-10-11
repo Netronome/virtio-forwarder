@@ -98,7 +98,7 @@ int dpdk_eal_initialize(const struct dpdk_conf *conf)
 
 	/* Unlink the hugepages after mapping to ensure they're gone when app exits. */
 	add_arg(&argv, &argc, "--huge-unlink");
-#if RTE_VERSION < RTE_VERSION_NUM(17,2,0,0)
+#if RTE_VERSION_NUM(17, 2, 0, 0) > RTE_VERSION
 	/* Prevent scanning all PCI devices at startup, instead only use hotplug API. */
 	add_arg(&argv, &argc, "--no-pci");
 #elif RTE_VERSION_NUM(20, 11, 0, 0) > RTE_VERSION
