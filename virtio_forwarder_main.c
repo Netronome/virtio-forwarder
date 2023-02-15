@@ -79,6 +79,9 @@
 #define DEFAULT_VHOSTUSER_PATH "/tmp"  /* /var/run/virtio-forwarder */
 #define DEFAULT_VHOSTUSER_SOCKNAME "virtio-forwarder%u.sock"
 #define DAEMONNAME "virtio-forwarder"
+#if RTE_VERSION_NUM(20, 8, 0, 0) <= RTE_VERSION
+#define DEFAULT_VFIO_VF_TOKEN "14d63f20-8445-11ea-8900-1f9ce7d5650d"
+#endif
 
 static bool running = true;
 static bool must_stop = false;
@@ -616,6 +619,24 @@ cmdline_enable_same_numa(void *opaque __attribute__((unused)),
 	return 0;
 }
 
+#if RTE_VERSION_NUM(20, 8, 0, 0) <= RTE_VERSION
+static int
+cmdline_set_vfio_vf_token(void *opaque __attribute__((unused)),
+			const char *arg,
+			int opt_index __attribute__((unused)))
+{
+	if (strcmp(arg, "\0") == 0) {
+		dpdk_cfg.enable_vfio_vf_token = false;
+	} else if (strcmp(arg, "0") == 0) {
+		dpdk_cfg.enable_vfio_vf_token = true;
+	} else {
+		dpdk_cfg.enable_vfio_vf_token = true;
+		snprintf(dpdk_cfg.vfio_vf_token, VFIO_VF_TOKEN_LEN, arg);
+	}
+	return 0;
+}
+#endif
+
 static int configure_signals(void)
 {
 	sigset_t sigset;
@@ -672,6 +693,9 @@ cmdline_opt_t opts[] = {
 	{ "enable-jumbo", 'J', 0, cmdline_enable_jumbo, 0, "Enable jumbo frame support for the relay (increases hugepage memory requirement)" },
 	{ "enable-mrgbuf", 'R', 0, cmdline_enable_mrgbuf, 0, "Enable virtio RX buffer merging (can impact small packet performance)" },
 	{ "add-pci-vf", 'P', 0, cmdline_add_static_vf, 1, "Add a static VF, <PCI>=<virtio_id>, e.g. 0000:05:08.1=1" },
+#if RTE_VERSION_NUM(20, 8, 0, 0) <= RTE_VERSION
+	{ "vfio-vf-token", 't', 0, cmdline_set_vfio_vf_token, 1, "Add a token to use all PF and VF ports within the application (default: "DEFAULT_VFIO_VF_TOKEN")" },
+#endif
 #if RTE_VERSION_NUM(16, 7, 0, 0) <= RTE_VERSION
 	{ "vhostuser-client", 'i', 0, cmdline_enable_vhostclient, 0, "Use vhostuser in client mode (default: server mode)" },
 #endif
@@ -707,7 +731,9 @@ int main(int argc, char *argv[])
 	dpdk_cfg.log_level = DEFAULT_LOG_LEVEL;
 	dpdk_cfg.master_lcore = DEFAULT_MASTER_LCORE;
 	snprintf(dpdk_cfg.huge_dir, 32, DEFAULT_HUGE_PATH);
-
+#if RTE_VERSION_NUM(20, 8, 0, 0) <= RTE_VERSION
+	snprintf(dpdk_cfg.vfio_vf_token, VFIO_VF_TOKEN_LEN, DEFAULT_VFIO_VF_TOKEN);
+#endif
 	snprintf(ovsdb_cfg.ovsdb_sock_path, 128, DEFAULT_OVSDB_SOCK);
 
 	snprintf(zmq_config_ep, sizeof zmq_config_ep, DEFAULT_ZMQ_CONFIG_EP);

@@ -64,6 +64,21 @@ VIRTIOFWD_DYNAMIC_SOCKETS=
 # then enable this option.
 # Set to anything non-null to enable
 VIRTIOFWD_CPU_NIC_SAME_NUMA=
+
+# This VF token can be passed to DPDK by using EAL parameter ``--vfio-vf-token``.
+# The token will be used for all PF and VF ports within the application. This
+# token is used in conjunction with the DPDK RTE_FLOW offload function. When
+# using RTE_FLOW, ensure that the token is consistent with applications such as OVS.
+# (default: 14d63f20-8445-11ea-8900-1f9ce7d5650d)
+#
+# There are three modes that can be used: NULL represents a non-DPDK RTE_FLOW
+# mode, the ``--vfio-vf-token`` parameter will not passed. If you fill in 0, the
+# default token value is used. The last mode is manually write the token value in
+# the format of the UUID.
+# VIRTIOFWD_VFIO_VF_TOKEN=
+# VIRTIOFWD_VFIO_VF_TOKEN=0
+# VIRTIOFWD_VFIO_VF_TOKEN=14d63f20-8445-11ea-8900-1f9ce7d5650d
+VIRTIOFWD_VFIO_VF_TOKEN=
 #-------------------------------------------------------------------------------
 
 

@@ -91,4 +91,5 @@ fi
     ${VIRTIOFWD_DYNAMIC_SOCKETS:+--dynamic-sockets} \
     ${VIRTIOFWD_CPU_NIC_SAME_NUMA:+--same-numa} \
     ${CPU_PINS_CMD_LINE} \
+    ${VIRTIOFWD_VFIO_VF_TOKEN:+--vfio-vf-token="$VIRTIOFWD_VFIO_VF_TOKEN"} \
     ${STATIC_VFS_CMD_LINE}

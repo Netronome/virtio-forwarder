@@ -35,15 +35,20 @@
 #define _DPDK_EAL_H
 
 #include <stdint.h>
+#include <stdbool.h>
+
+#define VFIO_VF_TOKEN_LEN 37
 
 struct dpdk_conf {
 	unsigned log_level;
 	unsigned master_lcore;
 	char huge_dir[32];
+	char vfio_vf_token[VFIO_VF_TOKEN_LEN];
 	uint64_t core_bitmap;
 	unsigned use_jumbo:1;
 	unsigned enable_tso:1;
 	unsigned enable_same_numa:1;
+	bool enable_vfio_vf_token;
 };
 
 int dpdk_eal_initialize(const struct dpdk_conf *conf);

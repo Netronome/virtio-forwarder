@@ -95,6 +95,12 @@ int dpdk_eal_initialize(const struct dpdk_conf *conf)
 	add_arg(&argv, &argc, conf->huge_dir);
 	add_arg(&argv, &argc, "--file-prefix");
 	add_arg(&argv, &argc, "virtio-forwarder_");
+#if RTE_VERSION_NUM(20, 8, 0, 0) <= RTE_VERSION
+if (conf->enable_vfio_vf_token) {
+	add_arg(&argv, &argc, "--vfio-vf-token");
+	add_arg(&argv, &argc, conf->vfio_vf_token);
+}
+#endif
 
 	/* Unlink the hugepages after mapping to ensure they're gone when app exits. */
 	add_arg(&argv, &argc, "--huge-unlink");
