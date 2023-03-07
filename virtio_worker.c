@@ -279,24 +279,58 @@ static void get_rx_conf(const struct rte_eth_dev_info *dev_info,
 #endif
 }
 
-static int cleanup_eth_dev(dpdk_port_t port_id)
+static int stop_close_remove_dev(dpdk_port_t port_id,
+			struct rte_eth_dev_info dev_info,
+			const char err_api[])
 {
 	int err;
 
+#if RTE_VERSION_NUM(20, 11, 0, 0) <= RTE_VERSION
+	err = rte_eth_dev_stop(port_id);
+	if (err != 0) {
+		log_error("%s: can't stop port %u", err_api, port_id);
+		return err;
+	}
+	err = rte_eth_dev_close(port_id);
+	if (err != 0) {
+		log_error("%s: can't close port %u", err_api, port_id);
+		return err;
+	}
+#else
 	rte_eth_dev_stop(port_id);
 	rte_eth_dev_close(port_id);
+#endif
 #if RTE_VERSION_NUM(18, 11, 0, 0) <= RTE_VERSION
-	const char rte_detach_api[] = "rte_dev_remove";
-	struct rte_eth_dev_info dev_info;
-	rte_eth_dev_info_get(port_id, &dev_info);
 	err = rte_dev_remove(dev_info.device);
+#endif
+
+	return err;
+}
+
+static int cleanup_eth_dev(dpdk_port_t port_id)
+{
+	int err;
+	static const char err_api[] = "rte_dev_remove";
+	struct rte_eth_dev_info dev_info;
+
+#if RTE_VERSION_NUM(19, 11, 0, 0) <= RTE_VERSION
+	err = rte_eth_dev_info_get(port_id, &dev_info);
+	if (err != 0) {
+		log_error("%s: can't get port %u the dev_info", err_api,
+			port_id);
+		return err;
+	}
+	err = stop_close_remove_dev(port_id, dev_info, err_api);
+#elif RTE_VERSION_NUM(18, 11, 0, 0) <= RTE_VERSION
+	rte_eth_dev_info_get(port_id, &dev_info);
+	err = stop_close_remove_dev(port_id, dev_info, err_api);
 #else
 	const char rte_detach_api[] = "rte_eth_dev_detach";
 	char detach_dbdf[RTE_ETH_NAME_MAX_LEN];
 	err = rte_eth_dev_detach(port_id, detach_dbdf);
 #endif
 	if (err != 0) {
-		log_warning("%s(%hhu) failed with error %i", rte_detach_api,
+		log_warning("%s(%hhu) failed with error %i", err_api,
 			port_id, err);
 	}
 
@@ -381,7 +415,17 @@ migrate_mempool(vio_vf_relay_t *relay, int newnode, unsigned num_pktmbufs)
 		log_info("Updating VF %s with the new NUMA configuration...",
 			relay->dpdk.pci_dbdf);
 		/* Reconfigure queues. */
+#if RTE_VERSION_NUM(19, 11, 0, 0) <= RTE_VERSION
+	static const char err_api[] = "migrate_mempool";
+	err = rte_eth_dev_info_get(port_id, &dev_info);
+	if (err != 0) {
+		log_error("%s: can't get port %u the dev_info", err_api,
+			port_id);
+		return err;
+	}
+#else
 		rte_eth_dev_info_get(relay->dpdk.dpdk_port, &dev_info);
+#endif
 		get_tx_conf(&dev_info, &tx_conf);
 		err = rte_eth_tx_queue_setup(port_id, 0, 1024,
 					relay->vio.mempool_socket_id, &tx_conf);
@@ -427,8 +471,18 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 		port_id, name, virtio_id);
 
 	/* Configure per-port offloads. */
-#if RTE_VERSION_NUM(18, 8, 0, 0) <= RTE_VERSION
+#if RTE_VERSION_NUM(19, 11, 0, 0) <= RTE_VERSION
+	static const char err_api[] = "migrate_mempool";
+	err = rte_eth_dev_info_get(port_id, &dev_info);
+	if (err != 0) {
+		log_error("%s: can't get port %u the dev_info", err_api,
+			port_id);
+		return err;
+	}
+#elif RTE_VERSION_NUM(18, 8, 0, 0) <= RTE_VERSION
 	rte_eth_dev_info_get(port_id, &dev_info);
+#endif
+#if RTE_VERSION_NUM(18, 8, 0, 0) <= RTE_VERSION
 #if RTE_VERSION_NUM(21, 11, 0, 0) > RTE_VERSION
 	if (dev_info.rx_offload_capa & DEV_RX_OFFLOAD_JUMBO_FRAME)
 		eth_conf.rxmode.offloads |= DEV_RX_OFFLOAD_JUMBO_FRAME;
@@ -511,7 +565,16 @@ static int dev_queue_configure(const char *name, dpdk_port_t port_id,
 	 * Per <http://dpdk.org/doc/api/rte__ethdev_8h.html>, we must setup the
 	 * TX queue before setting up the RX queue.
 	 */
+#if RTE_VERSION_NUM(19, 11, 0, 0) <= RTE_VERSION
+	err = rte_eth_dev_info_get(port_id, &dev_info);
+	if (err != 0) {
+		log_error("%s: can't get port %u the dev_info", err_api,
+			port_id);
+		return err;
+	}
+#else
 	rte_eth_dev_info_get(port_id, &dev_info);
+#endif
 	get_tx_conf(&dev_info, &tx_conf);
 	err = rte_eth_tx_queue_setup(port_id, 0, 1024,
 				relay->vio.mempool_socket_id, &tx_conf);
