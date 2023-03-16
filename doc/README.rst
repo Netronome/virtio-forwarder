@@ -270,6 +270,17 @@ following table lists a subset of the available options and their use:
 	    | sock files created by server mode virtio device.
 	  - true or false
 	  - true
+	* - | VIRTIOFWD_VFIO_VF_TOKEN
+	    | The token will be used for all PF and VF ports within the application.
+	    | This token is used in conjunction with the DPDK RTE_FLOW offload
+	    | function. When using RTE_FLOW, ensure that the token is consistent
+	    | with applications such as OVS. There are three modes that can be used:
+	    | NULL represents a non-DPDK RTE_FLOW mode.
+	    | 0 represents the default token value is used.
+	    | The last mode is any token in the format of the UUID, just like:
+	    | 'XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX'
+	  - None or 0 or UUID code
+	  - None
 
 Adding VF Ports to Virtio-forwarder
 ===================================
