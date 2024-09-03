@@ -137,7 +137,7 @@ jobs:
     # artifacts available
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4.1.7
 
       - name: Publish artifacts as release
         uses: ncipollo/release-action@v1
